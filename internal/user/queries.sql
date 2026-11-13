@@ -85,6 +85,22 @@ GROUP BY u.id
 ORDER BY u.id ASC
 LIMIT 1;
 
+-- name: get-contact-for-password-login
+SELECT
+    id,
+    email,
+    password,
+    first_name,
+    COALESCE(last_name, '') AS last_name,
+    avatar_url,
+    enabled
+FROM users
+WHERE
+    type = 'contact'
+    AND deleted_at IS NULL
+    AND LOWER(email) = LOWER($1)
+LIMIT 1;
+
 -- name: set-user-password
 UPDATE users
 SET password = $1, updated_at = now()

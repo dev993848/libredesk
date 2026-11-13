@@ -80,6 +80,77 @@ func getPortalContact(r *fastglue.Request) (pmodels.Contact, error) {
 	return c, nil
 }
 
+// handlePortalPasswordLogin signs a contact in with email and password.
+func handlePortalPasswordLogin(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	if !app.portal.Enabled() {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("globals.messages.pageNotFound"), nil, envelope.NotFoundError)
+	}
+
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if err := r.Decode(&req, "json"); err != nil {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" || req.Password == "" {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("auth.passwordRequired"), nil, envelope.InputError)
+	}
+
+	user, err := app.user.VerifyContactPassword(email, []byte(req.Password))
+	if err != nil {
+		app.lo.Warn("portal password login rejected", "email", email)
+		return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.T("user.invalidEmailPassword"), nil, envelope.UnauthorizedError)
+	}
+
+	if err := app.auth.SaveContactSession(umodels.User{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Type:      umodels.UserTypeContact,
+	}, r); err != nil {
+		app.lo.Error("error creating portal session", "contact_id", user.ID, "error", err)
+		return r.SendErrorEnvelope(http.StatusInternalServerError, app.i18n.T("portal.login.session"), nil, envelope.GeneralError)
+	}
+	if err := app.auth.SetCSRFCookie(r); err != nil {
+		app.lo.Error("error setting portal csrf cookie", "error", err)
+	}
+
+	return r.SendEnvelope(pmodels.Contact{
+		ID:        user.ID,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Email:     user.Email.String,
+		AvatarURL: user.AvatarURL.String,
+	})
+}
+
+// handlePortalSetPassword sets a password for the signed-in contact.
+func handlePortalSetPassword(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	contact, err := getPortalContact(r)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := r.Decode(&req, "json"); err != nil {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+	if strings.TrimSpace(req.Password) == "" {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("auth.passwordRequired"), nil, envelope.InputError)
+	}
+	if err := app.user.SetContactPassword(contact.ID, req.Password); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(map[string]any{"updated": true})
+}
+
 // handlePortalMagicLink sends a single-use login link to an existing contact.
 func handlePortalMagicLink(r *fastglue.Request) error {
 	app := r.Context.(*App)

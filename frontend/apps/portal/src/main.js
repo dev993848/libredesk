@@ -5,6 +5,7 @@ import App from './App.vue'
 import { routes } from './router.js'
 import { api, appConfig, getLanguage, getPublicConfig } from './api.js'
 import '@shared-ui/assets/styles/main.scss'
+import './theme.css'
 
 async function bootstrap() {
   // Load public app config and language pack before mounting so the first

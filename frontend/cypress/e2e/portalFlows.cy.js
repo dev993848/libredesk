@@ -98,6 +98,10 @@ describe('Portal UI: conversations', () => {
       { statusCode: 200, body: { status: 'success', data: { uuid: 'm4' } } }
     ).as('upload')
     cy.intercept(
+      { method: 'POST', pathname: '/api/v1/portal/auth/password' },
+      { statusCode: 200, body: { status: 'success', data: { updated: true } } }
+    ).as('password')
+    cy.intercept(
       { method: 'POST', pathname: '/api/v1/portal/conversations' },
       { statusCode: 200, body: { status: 'success', data: { uuid: 'new1' } } }
     ).as('create')
@@ -118,6 +122,15 @@ describe('Portal UI: conversations', () => {
         }
       }
     )
+  })
+
+  it('navigates between tickets and profile from the sidebar', () => {
+    cy.visit('/portal/')
+    cy.get('[data-testid="portal-nav-profile"]').click()
+    cy.url().should('include', '/portal/profile')
+
+    cy.get('[data-testid="portal-nav-conversations"]').click()
+    cy.url().should('match', /\/portal\/?$/)
   })
 
   it('lists the contact tickets with the total time spent', () => {
@@ -203,7 +216,19 @@ describe('Portal UI: conversations', () => {
     cy.visit('/portal/profile')
     cy.wait('@me')
     cy.get('[data-testid="portal-profile-email"]').should('contain', 'ivan@example.com')
-    cy.contains('Ivan Petrov').should('be.visible')
+    cy.get('main').contains('Ivan Petrov').should('be.visible')
+  })
+
+  it('sets a password from the profile', () => {
+    cy.visit('/portal/profile')
+    cy.get('[data-testid="portal-new-password"]').type('New-Password-2026!')
+    cy.get('[data-testid="portal-confirm-password"]').type('New-Password-2026!')
+    cy.get('[data-testid="portal-save-password"]').click()
+
+    cy.wait('@password').then(({ request }) => {
+      expect(request.body).to.deep.equal({ password: 'New-Password-2026!' })
+    })
+    cy.get('[data-testid="portal-password-saved"]').should('be.visible')
   })
 
   it('downloads the ticket transcript', () => {

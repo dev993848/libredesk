@@ -1,0 +1,23 @@
+/* Portal theme: indigo instead of the app's green primary. */
+:root,
+.light {
+  --primary: 243 75% 59%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 243 75% 59%;
+  --link: 243 75% 59%;
+  --sidebar-primary: 243 75% 59%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 243 100% 97%;
+  --sidebar-accent-foreground: 243 75% 30%;
+}
+
+.dark {
+  --primary: 239 84% 67%;
+  --primary-foreground: 240 10% 4%;
+  --ring: 239 84% 67%;
+  --link: 239 84% 67%;
+  --sidebar-primary: 239 84% 67%;
+  --sidebar-primary-foreground: 240 10% 4%;
+  --sidebar-accent: 240 4% 16%;
+  --sidebar-accent-foreground: 240 5% 96%;
+}

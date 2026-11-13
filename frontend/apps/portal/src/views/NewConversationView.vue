@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@shared-ui/components/ui/button'
 import { Input } from '@shared-ui/components/ui/input'
-import { appConfig, createConversation, uploadAttachment } from '../api.js'
+import { ArrowLeft } from 'lucide-vue-next'
+import { createConversation, uploadAttachment } from '../api.js'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -42,20 +43,15 @@ async function submit() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
-    <header class="border-b border-border bg-card">
-      <div class="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4">
-        <div class="min-w-0">
-          <RouterLink :to="{ name: 'conversations' }" class="text-sm text-muted-foreground hover:text-foreground">
-            {{ t('portal.back') }}
-          </RouterLink>
-          <p class="mt-1 truncate text-sm font-medium">{{ appConfig.siteName }}</p>
-        </div>
-      </div>
-    </header>
-
-    <main class="mx-auto max-w-3xl px-4 py-6">
-      <h1 class="mb-4 text-xl font-semibold tracking-tight">{{ t('portal.new.title') }}</h1>
+  <div>
+    <RouterLink
+      :to="{ name: 'conversations' }"
+      class="mb-5 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeft class="size-4" />
+      {{ t('portal.back') }}
+    </RouterLink>
+    <h1 class="mb-4 text-2xl font-semibold tracking-tight">{{ t('portal.new.title') }}</h1>
 
       <form class="rounded-lg border border-border bg-card p-4" @submit.prevent="submit">
         <p v-if="error" class="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -86,6 +82,5 @@ async function submit() {
           <input id="portal-files" type="file" multiple class="mt-1 block w-full text-sm" @change="onFiles" />
         </div>
       </form>
-    </main>
   </div>
 </template>

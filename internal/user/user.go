@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -84,6 +85,7 @@ type queries struct {
 	GetUserIDsByRole                 *sqlx.Stmt `query:"get-user-ids-by-role"`
 	GetUserByExternalID              *sqlx.Stmt `query:"get-user-by-external-id"`
 	GetUsersCompact                  string     `query:"get-users-compact"`
+	GetContactForPasswordLogin       *sqlx.Stmt `query:"get-contact-for-password-login"`
 	GetAgentsCompact                 *sqlx.Stmt `query:"get-agents-compact"`
 	GetAgentsCompactByIDs            *sqlx.Stmt `query:"get-agents-compact-by-ids"`
 	UpdateContact                    *sqlx.Stmt `query:"update-contact"`
@@ -173,6 +175,47 @@ func (u *Manager) VerifyPassword(email string, password []byte) (models.User, er
 		return user, envelope.NewError(envelope.InputError, u.i18n.T("user.invalidEmailPassword"), nil)
 	}
 	return user, nil
+}
+
+// VerifyContactPassword verifies a contact's email and password for the customer portal.
+func (u *Manager) VerifyContactPassword(email string, password []byte) (models.User, error) {
+	var user models.User
+	if err := u.q.GetContactForPasswordLogin.Get(&user, email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			u.lo.Warn("portal password login rejected: invalid credentials")
+			return user, envelope.NewError(envelope.InputError, u.i18n.T("user.invalidEmailPassword"), nil)
+		}
+		u.lo.Error("error fetching contact for password login", "error", err)
+		return user, envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if !user.Enabled {
+		return user, envelope.NewError(envelope.InputError, u.i18n.T("user.invalidEmailPassword"), nil)
+	}
+	if err := u.verifyPassword(password, user.Password.String); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			u.lo.Warn("portal password login rejected: invalid credentials", "user_id", user.ID)
+		}
+		return user, envelope.NewError(envelope.InputError, u.i18n.T("user.invalidEmailPassword"), nil)
+	}
+	return user, nil
+}
+
+// SetContactPassword sets a password for a contact.
+func (u *Manager) SetContactPassword(id int, password string) error {
+	if !IsStrongPassword(password) {
+		return envelope.NewError(envelope.InputError, u.i18n.Ts("globals.messages.strongPassword",
+			"min", strconv.Itoa(minPassword), "max", strconv.Itoa(maxPassword)), nil)
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		u.lo.Error("error hashing contact password", "error", err)
+		return envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	if _, err := u.q.SetUserPassword.Exec(hash, id); err != nil {
+		u.lo.Error("error setting contact password", "error", err)
+		return envelope.NewError(envelope.GeneralError, u.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return nil
 }
 
 // GetAllUsers returns a list of all users.

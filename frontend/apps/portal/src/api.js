@@ -35,10 +35,13 @@ export const getPublicConfig = async () => {
 
 export const getLanguage = async (lang) => {
   const resp = await api.get(`/api/v1/lang/${encodeURIComponent(lang)}`)
-  return resp.data.data || {}
+  // The public language endpoint returns the translation object directly.
+  return resp.data?.data || resp.data || {}
 }
 
 export const requestMagicLink = (email) => api.post('/api/v1/portal/auth/magic-link', { email })
+export const passwordLogin = (email, password) => api.post('/api/v1/portal/auth/login', { email, password })
+export const setPassword = (password) => api.post('/api/v1/portal/auth/password', { password })
 export const logout = () => api.post('/api/v1/portal/auth/logout')
 export const getMe = () => api.get('/api/v1/portal/me')
 export const listConversations = (params) => api.get('/api/v1/portal/conversations', { params })

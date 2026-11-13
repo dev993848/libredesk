@@ -6,7 +6,8 @@ import { sanitize } from 'lettersanitizer'
 import { Badge } from '@shared-ui/components/ui/badge'
 import { Button } from '@shared-ui/components/ui/button'
 import { Spinner } from '@shared-ui/components/ui/spinner'
-import { appConfig, getConversation, markSeen, replyToConversation, uploadAttachment } from '../api.js'
+import { ArrowLeft, Download } from 'lucide-vue-next'
+import { getConversation, markSeen, replyToConversation, uploadAttachment } from '../api.js'
 import { formatDate, formatDuration } from '../utils/format.js'
 
 const { t, locale } = useI18n()
@@ -107,32 +108,20 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="min-h-screen bg-background text-foreground">
-    <header class="border-b border-border bg-card">
-      <div class="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4">
-        <div class="min-w-0">
-          <RouterLink :to="{ name: 'conversations' }" class="text-sm text-muted-foreground hover:text-foreground">
-            {{ t('portal.back') }}
-          </RouterLink>
-          <p class="mt-1 truncate text-sm font-medium">{{ appConfig.siteName }}</p>
-        </div>
-        <div class="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            data-testid="portal-transcript"
-            @click="downloadTranscript"
-          >
-            {{ t('portal.transcript') }}
-          </Button>
-          <Button variant="ghost" size="sm" @click="$router.push({ name: 'conversations' })">
-            {{ t('portal.conversations.title') }}
-          </Button>
-        </div>
-      </div>
-    </header>
-
-    <main class="mx-auto max-w-3xl px-4 py-6">
+  <div>
+    <div class="mb-5 flex items-center justify-between gap-2">
+      <RouterLink
+        :to="{ name: 'conversations' }"
+        class="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft class="size-4" />
+        {{ t('portal.back') }}
+      </RouterLink>
+      <Button variant="outline" size="sm" data-testid="portal-transcript" @click="downloadTranscript">
+        <Download class="size-4" />
+        {{ t('portal.transcript') }}
+      </Button>
+    </div>
       <div v-if="loading" class="py-12">
         <Spinner size="md" :absolute="false" :text="t('portal.loading')" />
       </div>
@@ -228,7 +217,6 @@ onMounted(load)
           </div>
         </form>
       </template>
-    </main>
   </div>
 </template>
 
