@@ -7,6 +7,7 @@ describe('Portal UI: login', () => {
     }).as('magicLink')
 
     cy.visit('/portal/login')
+    cy.title().should('eq', 'Libredesk')
     cy.get('#portal-email').should('be.visible').type('ivan@example.com')
     cy.get('button[type="submit"]').click()
 

@@ -20,6 +20,19 @@ async function bootstrap() {
     console.error('error loading portal config', err)
   }
 
+  // Apply portal branding before the first render.
+  document.documentElement.lang = appConfig.lang
+  document.title = appConfig.siteName || 'Libredesk'
+  if (appConfig.faviconUrl) {
+    let icon = document.querySelector('link[rel="icon"]')
+    if (!icon) {
+      icon = document.createElement('link')
+      icon.rel = 'icon'
+      document.head.appendChild(icon)
+    }
+    icon.href = appConfig.faviconUrl
+  }
+
   let messages = {}
   try {
     messages = await getLanguage(appConfig.lang)
