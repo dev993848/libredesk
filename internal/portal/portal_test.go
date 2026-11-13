@@ -258,3 +258,27 @@ func TestProcessContactMessageUsesChannelProcessing(t *testing.T) {
 		t.Fatalf("livechat calls=%d, want 1", store.livechatCalls)
 	}
 }
+
+func TestValidateLoginTokenDoesNotConsume(t *testing.T) {
+	db := testutil.NewDB(t, "portal_validate_token")
+	m := newTestManager(t, db, &fakeConversationStore{})
+	contactID := insertContact(t, db, "Ivan", "ivan@example.com")
+
+	token, err := m.CreateLoginToken(contactID, "127.0.0.1")
+	if err != nil {
+		t.Fatalf("creating token: %v", err)
+	}
+
+	contact, err := m.ValidateLoginToken(token)
+	if err != nil || contact.ID != contactID {
+		t.Fatalf("validating token: contact=%+v err=%v", contact, err)
+	}
+
+	// The confirmation page must not burn the token.
+	if _, err := m.ConsumeLoginToken(token); err != nil {
+		t.Fatalf("consuming validated token: %v", err)
+	}
+	if _, err := m.ValidateLoginToken(token); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("expected ErrInvalidToken after use, got %v", err)
+	}
+}

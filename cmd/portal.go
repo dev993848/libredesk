@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/mail"
@@ -159,14 +160,30 @@ func sendPortalMagicLink(app *App, contact pmodels.Contact, link string) {
 	}
 }
 
-// handlePortalVerify burns a login token, starts a portal session and redirects to the portal.
+// handlePortalVerify confirms a magic-link login and starts a portal session.
+// GET only validates the token and renders a confirmation page so email link
+// scanners cannot burn single-use tokens; POST consumes the token.
 func handlePortalVerify(r *fastglue.Request) error {
 	app := r.Context.(*App)
 	if !app.portal.Enabled() {
 		return r.RedirectURI("/portal/login?error=disabled", fasthttp.StatusFound, nil, "")
 	}
 
-	token := string(r.RequestCtx.QueryArgs().Peek("token"))
+	token := strings.TrimSpace(string(r.RequestCtx.QueryArgs().Peek("token")))
+	if r.RequestCtx.IsPost() {
+		token = strings.TrimSpace(string(r.RequestCtx.PostArgs().Peek("token")))
+	}
+	if token == "" {
+		return r.RedirectURI("/portal/login?error=invalid", fasthttp.StatusFound, nil, "")
+	}
+
+	if !r.RequestCtx.IsPost() {
+		if _, err := app.portal.ValidateLoginToken(token); err != nil {
+			return r.RedirectURI("/portal/login?error=invalid", fasthttp.StatusFound, nil, "")
+		}
+		return sendPortalVerifyPage(r, app, token)
+	}
+
 	contact, err := app.portal.ConsumeLoginToken(token)
 	if err != nil {
 		return r.RedirectURI("/portal/login?error=invalid", fasthttp.StatusFound, nil, "")
@@ -187,6 +204,49 @@ func handlePortalVerify(r *fastglue.Request) error {
 		app.lo.Error("error setting portal csrf cookie", "error", err)
 	}
 	return r.RedirectURI("/portal", fasthttp.StatusFound, nil, "")
+}
+
+// sendPortalVerifyPage renders the one-click confirmation form for a magic link.
+func sendPortalVerifyPage(r *fastglue.Request, app *App, token string) error {
+	page := fmt.Sprintf(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>%s</title>
+<style>
+body{background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#09090b}
+.card{background:#fff;border:1px solid #e4e4e7;border-radius:8px;padding:32px;max-width:420px;width:calc(100%% - 48px)}
+h1{font-size:20px;margin:0 0 12px}
+p{font-size:14px;line-height:1.6;color:#52525b;margin:0 0 24px}
+button{background:#18181b;color:#fafafa;border:0;border-radius:6px;padding:10px 20px;font-size:14px;font-weight:500;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>%s</h1>
+<p>%s</p>
+<form method="post" action="/api/v1/portal/auth/verify">
+<input type="hidden" name="token" value="%s">
+<button type="submit">%s</button>
+</form>
+</div>
+</body>
+</html>`,
+		html.EscapeString(app.i18n.T("portal.verify.title")),
+		html.EscapeString(app.i18n.T("portal.verify.title")),
+		html.EscapeString(app.i18n.T("portal.verify.intro")),
+		html.EscapeString(token),
+		html.EscapeString(app.i18n.T("portal.verify.button")),
+	)
+
+	r.RequestCtx.Response.Header.Set("Content-Type", "text/html; charset=utf-8")
+	r.RequestCtx.Response.Header.Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	r.RequestCtx.Response.Header.Set("Pragma", "no-cache")
+	r.RequestCtx.Response.Header.Set("Referrer-Policy", "no-referrer")
+	r.RequestCtx.Response.Header.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'")
+	r.RequestCtx.Response.SetBodyString(page)
+	return nil
 }
 
 // handlePortalAuthExchange exchanges a signed JWT for a portal session.

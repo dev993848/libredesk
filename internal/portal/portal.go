@@ -74,6 +74,7 @@ type queries struct {
 	GetContactByExternalID   *sqlx.Stmt `query:"get-contact-by-external-id"`
 	GetContactByID           *sqlx.Stmt `query:"get-contact-by-id"`
 	InsertLoginToken         *sqlx.Stmt `query:"insert-login-token"`
+	ValidateLoginToken       *sqlx.Stmt `query:"validate-login-token"`
 	ConsumeLoginToken        *sqlx.Stmt `query:"consume-login-token"`
 	DeleteExpiredLoginTokens *sqlx.Stmt `query:"delete-expired-login-tokens"`
 	ListConversations        *sqlx.Stmt `query:"list-conversations"`
@@ -194,6 +195,26 @@ func (m *Manager) CreateLoginToken(contactID int, requestedIP string) (string, e
 		return "", envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return token, nil
+}
+
+// ValidateLoginToken checks a login token without burning it. It is used by the
+// confirmation page so mail scanners that prefetch links do not consume the token.
+func (m *Manager) ValidateLoginToken(token string) (models.Contact, error) {
+	hash := sha256.Sum256([]byte(strings.TrimSpace(token)))
+
+	var contactID int
+	if err := m.q.ValidateLoginToken.Get(&contactID, hash[:]); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return models.Contact{}, ErrInvalidToken
+		}
+		m.lo.Error("error validating portal login token", "error", err)
+		return models.Contact{}, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	contact, err := m.GetContactByID(contactID)
+	if err != nil {
+		return models.Contact{}, ErrInvalidToken
+	}
+	return contact, nil
 }
 
 // ConsumeLoginToken validates and burns a login token, returning the contact.

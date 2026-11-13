@@ -53,6 +53,13 @@ WHERE
 INSERT INTO portal_login_tokens (contact_id, token_hash, expires_at, requested_ip)
 VALUES ($1, $2, $3, NULLIF($4, ''));
 
+-- name: validate-login-token
+SELECT contact_id
+FROM portal_login_tokens
+WHERE token_hash = $1
+    AND used_at IS NULL
+    AND expires_at > NOW();
+
 -- name: consume-login-token
 UPDATE portal_login_tokens
 SET used_at = NOW()

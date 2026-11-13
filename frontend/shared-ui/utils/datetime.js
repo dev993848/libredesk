@@ -27,7 +27,8 @@ export const formatDuration = (seconds, showSeconds = true) => {
   const hours = Math.floor(totalSeconds / 3600)
   const mins = Math.floor((totalSeconds % 3600) / 60)
   const secs = totalSeconds % 60
-  return `${hours}h ${mins}m ${showSeconds ? `${secs}s` : ''}`
+  if (!showSeconds) return `${hours}h ${mins}m`
+  return `${hours}h ${mins}m ${secs}s`
 }
 
 export const formatMessageTimestamp = (time) => {

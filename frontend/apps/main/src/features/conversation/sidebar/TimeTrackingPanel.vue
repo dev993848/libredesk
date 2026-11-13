@@ -84,6 +84,7 @@ async function addManual() {
 }
 
 async function removeEntry(entry) {
+  if (!window.confirm(t('timeTracking.confirmDelete'))) return
   try {
     await api.delete(`/api/v1/time-entries/${entry.id}`)
     await load()

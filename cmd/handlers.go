@@ -36,6 +36,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Customer portal API.
 	g.POST("/api/v1/portal/auth/magic-link", rateLimit(handlePortalMagicLink, "portal_auth"))
 	g.GET("/api/v1/portal/auth/verify", rateLimit(handlePortalVerify, "portal_auth"))
+	g.POST("/api/v1/portal/auth/verify", rateLimit(handlePortalVerify, "portal_auth"))
 	g.POST("/api/v1/portal/auth/exchange", rateLimit(handlePortalAuthExchange, "portal_auth"))
 	g.POST("/api/v1/portal/auth/logout", rateLimit(portalAuth(handlePortalLogout), "portal"))
 	g.GET("/api/v1/portal/me", rateLimit(portalAuth(handlePortalMe), "portal"))
