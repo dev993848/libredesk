@@ -1,0 +1,18 @@
+{{ define "portal-magic-link" }}
+{{ template "header" . }}
+
+<h1>{{ .Title }}</h1>
+
+<p>{{ .Intro }}</p>
+
+<div style="margin: 24px 0;">
+    <a href="{{ .Link }}" class="button"
+        style="background-color: #18181b; color: #fafafa; display: inline-block; border-radius: 6px; padding: 10px 20px; line-height: 20px; text-decoration: none; font-weight: 500; font-size: 14px;">
+        {{ .Button }}
+    </a>
+</div>
+
+<p class="text-muted" style="color: #71717a; font-size: 14px;">{{ .Hint }}</p>
+
+{{ template "footer" . }}
+{{ end }}

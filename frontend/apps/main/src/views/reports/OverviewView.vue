@@ -266,6 +266,36 @@
           </div>
         </div>
 
+        <!-- Row 4b: Time spent -->
+        <div class="w-full box p-5">
+          <p class="ui-heading mb-4">{{ $t('report.time.cardTitle') }}</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="metric-item justify-center p-4">
+              <span class="metric-value">{{ formatDuration(timeData.total_seconds || 0, false) }}</span>
+              <span class="metric-label mt-2">{{ $t('report.time.total') }}</span>
+              <span class="text-sm text-muted-foreground mt-1">
+                {{ $t('report.time.billable') }}: {{ formatDuration(timeData.billable_seconds || 0, false) }}
+              </span>
+            </div>
+
+            <div class="space-y-3">
+              <p class="ui-subheading mb-3 text-left">{{ $t('report.time.topAgents') }}</p>
+              <div
+                v-for="agent in (timeData.agents || []).slice(0, 5)"
+                :key="agent.name"
+                class="flex justify-between items-center py-1"
+              >
+                <span class="text-sm">{{ agent.name }}</span>
+                <span class="text-sm font-semibold">{{ formatDuration(agent.seconds, false) }}</span>
+              </div>
+              <p v-if="!timeData.agents?.length" class="text-sm text-muted-foreground">
+                {{ $t('report.time.noEntries') }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- Row 5: Line Chart -->
         <div class="box w-full p-5">
           <p class="ui-heading mb-4">{{ $t('report.chart.title') }}</p>
@@ -352,6 +382,12 @@ const tagDistributionData = ref({
   tagged_percentage: 0
 })
 
+const timeData = ref({
+  total_seconds: 0,
+  billable_seconds: 0,
+  agents: []
+})
+
 const sections = {
   sla: async (days) => {
     const { data } = await api.getOverviewSLA({ days })
@@ -376,6 +412,10 @@ const sections = {
   tagDistribution: async (days) => {
     const { data } = await api.getOverviewTagDistribution({ days })
     tagDistributionData.value = { ...tagDistributionData.value, ...data.data }
+  },
+  time: async (days) => {
+    const { data } = await api.getOverviewTime({ days })
+    timeData.value = { ...timeData.value, ...data.data }
   }
 }
 

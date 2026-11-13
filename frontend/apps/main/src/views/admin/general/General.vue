@@ -7,6 +7,7 @@
           :initial-values="initialValues"
           :available-languages="availableLanguages"
         />
+        <PortalSettingsForm class="mt-6" />
       </LoadingOverlay>
     </template>
     <template #help>
@@ -19,6 +20,7 @@
 import { ref, onMounted } from 'vue'
 import LoadingOverlay from '@/components/layout/LoadingOverlay.vue'
 import GeneralSettingForm from '@/features/admin/general/GeneralSettingForm.vue'
+import PortalSettingsForm from '@/features/admin/general/PortalSettingsForm.vue'
 import AdminSplitLayout from '@/layouts/admin/AdminSplitLayout.vue'
 import { useAppSettingsStore } from '@/stores/appSettings'
 import api from '@/api'

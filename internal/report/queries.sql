@@ -362,3 +362,39 @@ SELECT
     ) AS result
 FROM
     tagging;
+-- name: get-overview-time
+WITH entries AS (
+    SELECT
+        e.duration_seconds,
+        e.billable,
+        e.user_id
+    FROM
+        conversation_time_entries e
+    WHERE
+        e.started_at >= CASE
+            WHEN %d = 0 THEN DATE_TRUNC('day', NOW() AT TIME ZONE $1) AT TIME ZONE $1
+            ELSE NOW() - INTERVAL '%d days'
+        END
+)
+SELECT
+    json_build_object(
+        'total_seconds',
+        COALESCE((SELECT SUM(duration_seconds) FROM entries), 0),
+        'billable_seconds',
+        COALESCE((SELECT SUM(CASE WHEN billable THEN duration_seconds ELSE 0 END) FROM entries), 0),
+        'agents',
+        COALESCE((
+            SELECT json_agg(row_to_json(a))
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(CONCAT_WS(' ', NULLIF(u.first_name, ''), NULLIF(u.last_name, '')), ''), '—') AS name,
+                    SUM(e.duration_seconds)::int AS seconds
+                FROM entries e
+                LEFT JOIN users u ON u.id = e.user_id
+                GROUP BY 1
+                ORDER BY seconds DESC
+                LIMIT 10
+            ) a
+        ), '[]'::json)
+    )
+

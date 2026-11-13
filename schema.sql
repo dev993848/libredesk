@@ -1171,7 +1171,13 @@ VALUES
     ('notification.email.max_msg_retries', '3'::jsonb),
     ('notification.email.enabled', 'false'::jsonb),
     ('notification.push.vapid_public_key', '""'::jsonb),
-    ('notification.push.vapid_private_key', '""'::jsonb);
+    ('notification.push.vapid_private_key', '""'::jsonb),
+    ('portal.enabled', 'true'::jsonb),
+    ('portal.default_inbox_id', '0'::jsonb),
+    ('portal.jwt_enabled', 'false'::jsonb),
+    ('portal.jwt_secret', '""'::jsonb),
+    ('portal.session_lifetime', '"720h"'::jsonb),
+    ('portal.magic_link_ttl', '"15m"'::jsonb);
 
 -- Default conversation priorities
 INSERT INTO conversation_priorities (name) VALUES

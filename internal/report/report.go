@@ -49,6 +49,7 @@ type queries struct {
 	GetOverviewCSAT            string `query:"get-overview-csat"`
 	GetOverviewMessageVolume   string `query:"get-overview-message-volume"`
 	GetOverviewTagDistribution string `query:"get-overview-tag-distribution"`
+	GetOverviewTime            string `query:"get-overview-time"`
 }
 
 // New creates and returns a new instance of the Manager.
@@ -203,6 +204,27 @@ func (m *Manager) GetOverviewTagDistribution(days int, timezone string) (json.Ra
 	query := fmt.Sprintf(m.q.GetOverviewTagDistribution, days, days, days, days)
 	if err := tx.Get(&stats, query, stringutil.NormalizeTimezone(timezone)); err != nil {
 		m.lo.Error("error fetching overview tag distribution", "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return stats, nil
+}
+
+// GetOverviewTime returns time tracking totals and the top agents for the overview dashboard.
+func (m *Manager) GetOverviewTime(days int, timezone string) (json.RawMessage, error) {
+	days = clampDays(days)
+	var stats = json.RawMessage{}
+	tx, err := m.db.BeginTxx(context.Background(), &sql.TxOptions{
+		ReadOnly: true,
+	})
+	if err != nil {
+		m.lo.Error("error starting db txn", "error", err)
+		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	defer tx.Rollback()
+
+	query := fmt.Sprintf(m.q.GetOverviewTime, days, days)
+	if err := tx.Get(&stats, query, stringutil.NormalizeTimezone(timezone)); err != nil {
+		m.lo.Error("error fetching overview time", "error", err)
 		return nil, envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
 	return stats, nil

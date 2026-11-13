@@ -70,6 +70,19 @@ func handleOverviewMessageVolume(r *fastglue.Request) error {
 	return r.SendEnvelope(volume)
 }
 
+// handleOverviewTime retrieves time tracking metrics for the dashboard.
+func handleOverviewTime(r *fastglue.Request) error {
+	var (
+		app     = r.Context.(*App)
+		days, _ = strconv.Atoi(string(r.RequestCtx.QueryArgs().Peek("days")))
+	)
+	stats, err := app.report.GetOverviewTime(days, app.setting.GetAppTimezone())
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(stats)
+}
+
 // handleOverviewTagDistribution retrieves tag distribution metrics for the dashboard.
 func handleOverviewTagDistribution(r *fastglue.Request) error {
 	var (

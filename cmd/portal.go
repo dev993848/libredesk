@@ -19,6 +19,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/portal"
 	pmodels "github.com/abhinavxd/libredesk/internal/portal/models"
 	"github.com/abhinavxd/libredesk/internal/stringutil"
+	tmpl "github.com/abhinavxd/libredesk/internal/template"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/valyala/fasthttp"
 	"github.com/volatiletech/null/v9"
@@ -126,10 +127,21 @@ func handlePortalMagicLink(r *fastglue.Request) error {
 // sendPortalMagicLink emails the login link, preferring the configured support inbox.
 func sendPortalMagicLink(app *App, contact pmodels.Contact, link string) {
 	subject := app.i18n.T("portal.email.subject")
-	body := app.i18n.Ts("portal.email.body", "link", link)
+
+	content, err := app.tmpl.RenderInMemoryTemplate(tmpl.TmplPortalMagicLink, map[string]any{
+		"Link":   link,
+		"Title":  app.i18n.T("portal.email.heading"),
+		"Intro":  app.i18n.T("portal.email.intro"),
+		"Button": app.i18n.T("portal.email.button"),
+		"Hint":   app.i18n.T("portal.email.hint"),
+	})
+	if err != nil {
+		app.lo.Warn("error rendering portal magic link template, using plain body", "error", err)
+		content = app.i18n.Ts("portal.email.body", "link", link)
+	}
 
 	if inboxID := app.portal.Config().DefaultInboxID; inboxID > 0 {
-		if err := app.conversation.SendTransientEmail(inboxID, 0, "", []string{contact.Email}, subject, body); err == nil {
+		if err := app.conversation.SendTransientEmail(inboxID, 0, "", []string{contact.Email}, subject, content); err == nil {
 			return
 		} else {
 			app.lo.Warn("error sending portal magic link via inbox, falling back to notification email", "inbox_id", inboxID, "error", err)
@@ -140,7 +152,7 @@ func sendPortalMagicLink(app *App, contact pmodels.Contact, link string) {
 		Provider:        notifier.ProviderEmail,
 		RecipientEmails: []string{contact.Email},
 		Subject:         subject,
-		Content:         body,
+		Content:         content,
 		ContentType:     "html",
 	}); err != nil {
 		app.lo.Error("error queueing portal magic link email", "contact_id", contact.ID, "error", err)

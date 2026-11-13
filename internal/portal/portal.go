@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/abhinavxd/libredesk/internal/attachment"
@@ -87,6 +88,7 @@ type Manager struct {
 	lo   *logf.Logger
 	i18n *i18n.I18n
 	conv ConversationStore
+	mu   sync.RWMutex
 	cfg  Config
 }
 
@@ -113,12 +115,28 @@ func New(opts Opts) (*Manager, error) {
 
 // Enabled reports whether the portal is enabled.
 func (m *Manager) Enabled() bool {
-	return m.cfg.Enabled
+	return m.config().Enabled
 }
 
-// Config returns the portal configuration.
+// Config returns a copy of the portal configuration.
 func (m *Manager) Config() Config {
+	return m.config()
+}
+
+func (m *Manager) config() Config {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.cfg
+}
+
+// Reload replaces the runtime configuration, e.g. after settings are saved.
+func (m *Manager) Reload(cfg Config) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if cfg.MagicLinkTTL <= 0 {
+		cfg.MagicLinkTTL = defaultMagicLinkTTL
+	}
+	m.cfg = cfg
 }
 
 // GetContactByEmail returns an active contact by email, case-insensitively.
@@ -170,7 +188,7 @@ func (m *Manager) CreateLoginToken(contactID int, requestedIP string) (string, e
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	hash := sha256.Sum256([]byte(token))
 
-	if _, err := m.q.InsertLoginToken.Exec(contactID, hash[:], time.Now().Add(m.cfg.MagicLinkTTL), requestedIP); err != nil {
+	if _, err := m.q.InsertLoginToken.Exec(contactID, hash[:], time.Now().Add(m.config().MagicLinkTTL), requestedIP); err != nil {
 		m.lo.Error("error inserting portal login token", "contact_id", contactID, "error", err)
 		return "", envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.somethingWentWrong"), nil)
 	}
@@ -307,11 +325,11 @@ func (m *Manager) GetInbox(id int) (inbox, error) {
 
 // CreateConversation starts a new conversation for the contact in the configured inbox.
 func (m *Manager) CreateConversation(contact models.Contact, subject, content string) (string, error) {
-	if m.cfg.DefaultInboxID <= 0 {
+	if m.config().DefaultInboxID <= 0 {
 		return "", envelope.NewError(envelope.InputError, m.i18n.T("portal.noInbox"), nil)
 	}
 
-	inb, err := m.GetInbox(m.cfg.DefaultInboxID)
+	inb, err := m.GetInbox(m.config().DefaultInboxID)
 	if err != nil {
 		return "", err
 	}

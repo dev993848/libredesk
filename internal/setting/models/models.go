@@ -30,7 +30,17 @@ type EmailNotification struct {
 	Enabled       bool   `json:"notification.email.enabled" db:"notification.email.enabled"`
 }
 
+type Portal struct {
+	Enabled         bool   `json:"portal.enabled" db:"portal.enabled"`
+	DefaultInboxID  int    `json:"portal.default_inbox_id" db:"portal.default_inbox_id"`
+	JWTEnabled      bool   `json:"portal.jwt_enabled" db:"portal.jwt_enabled"`
+	JWTSecret       string `json:"portal.jwt_secret" db:"portal.jwt_secret"`
+	SessionLifetime string `json:"portal.session_lifetime" db:"portal.session_lifetime"`
+	MagicLinkTTL    string `json:"portal.magic_link_ttl" db:"portal.magic_link_ttl"`
+}
+
 type Settings struct {
 	EmailNotification
 	General
+	Portal
 }

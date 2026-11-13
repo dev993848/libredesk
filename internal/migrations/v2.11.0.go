@@ -51,6 +51,15 @@ func V2_11_0(db *sqlx.DB, fs stuffbin.FileSystem, ko *koanf.Koanf) error {
 		`UPDATE roles
 			SET permissions = array_append(permissions, 'time_tracking:manage')
 			WHERE name = 'Admin' AND NOT ('time_tracking:manage' = ANY(permissions));`,
+
+		`INSERT INTO settings (key, value) VALUES
+			('portal.enabled', 'true'::jsonb),
+			('portal.default_inbox_id', '0'::jsonb),
+			('portal.jwt_enabled', 'false'::jsonb),
+			('portal.jwt_secret', '""'::jsonb),
+			('portal.session_lifetime', '"720h"'::jsonb),
+			('portal.magic_link_ttl', '"15m"'::jsonb)
+			ON CONFLICT (key) DO NOTHING;`,
 	}
 
 	for _, q := range queries {

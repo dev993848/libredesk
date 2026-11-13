@@ -25,8 +25,9 @@ const (
 	TmplConversationReopened  = "Conversation reopened"
 
 	// Built-in templates fetched from memory stored in `static` directory.
-	TmplResetPassword = "reset-password"
-	TmplWelcome       = "welcome"
+	TmplResetPassword   = "reset-password"
+	TmplWelcome         = "welcome"
+	TmplPortalMagicLink = "portal-magic-link"
 
 	// Template names for rendering.
 	TmplBase    = "base"

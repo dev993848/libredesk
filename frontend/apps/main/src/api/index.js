@@ -409,6 +409,7 @@ const getOverviewSLA = (params) => http.get('/api/v1/reports/overview/sla', { pa
 const getOverviewCSAT = (params) => http.get('/api/v1/reports/overview/csat', { params })
 const getOverviewMessageVolume = (params) => http.get('/api/v1/reports/overview/messages', { params })
 const getOverviewTagDistribution = (params) => http.get('/api/v1/reports/overview/tags', { params })
+const getOverviewTime = (params) => http.get('/api/v1/reports/overview/time', { params })
 const getLanguage = (lang) => http.get(`/api/v1/lang/${lang}`)
 const getAvailableLanguages = () => http.get('/api/v1/lang')
 const createInbox = (data) =>
@@ -418,6 +419,8 @@ const createInbox = (data) =>
     }
   })
 const getInboxes = () => http.get('/api/v1/inboxes')
+const getPortalSettings = () => http.get('/api/v1/settings/portal')
+const updatePortalSettings = (data) => http.put('/api/v1/settings/portal', data)
 const getInbox = (id) => http.get(`/api/v1/inboxes/${id}`)
 const toggleInbox = (id) => http.put(`/api/v1/inboxes/${id}/toggle`)
 const updateInbox = (id, data) =>
@@ -690,6 +693,7 @@ export default {
   getUsers,
   getInbox,
   getInboxes,
+  getPortalSettings,
   getLanguage,
   getAvailableLanguages,
   getConversation,
@@ -719,6 +723,7 @@ export default {
   getOverviewCSAT,
   getOverviewMessageVolume,
   getOverviewTagDistribution,
+  getOverviewTime,
   getConversationMessage,
   getConversationMessages,
   getConversationTranscript,
@@ -771,6 +776,7 @@ export default {
   updateTeam,
   getSettings,
   updateSettings,
+  updatePortalSettings,
   createOIDC,
   getAllOIDC,
   getConfig,

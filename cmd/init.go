@@ -951,31 +951,34 @@ func initTimeTracking(db *sqlx.DB, i18n *i18n.I18n) *timetracking.Manager {
 	return m
 }
 
-// initPortal initializes the customer portal manager.
-func initPortal(db *sqlx.DB, conv *conversation.Manager, i18n *i18n.I18n) *portal.Manager {
+// portalConfigFromKo builds the portal configuration from the loaded settings.
+func portalConfigFromKo() portal.Config {
 	enabled := true
 	if ko.Exists("portal.enabled") {
 		enabled = ko.Bool("portal.enabled")
 	}
-
 	ttl := ko.Duration("portal.magic_link_ttl")
 	if ttl <= 0 {
 		ttl = 15 * time.Minute
 	}
+	return portal.Config{
+		Enabled:         enabled,
+		MagicLinkTTL:    ttl,
+		DefaultInboxID:  ko.Int("portal.default_inbox_id"),
+		JWTEnabled:      ko.Bool("portal.jwt_enabled"),
+		JWTSecret:       ko.String("portal.jwt_secret"),
+		SessionLifetime: ko.Duration("portal.session_lifetime"),
+	}
+}
 
+// initPortal initializes the customer portal manager.
+func initPortal(db *sqlx.DB, conv *conversation.Manager, i18n *i18n.I18n) *portal.Manager {
 	p, err := portal.New(portal.Opts{
 		DB:           db,
 		Lo:           initLogger("portal"),
 		I18n:         i18n,
 		Conversation: conv,
-		Config: portal.Config{
-			Enabled:         enabled,
-			MagicLinkTTL:    ttl,
-			DefaultInboxID:  ko.Int("portal.default_inbox_id"),
-			JWTEnabled:      ko.Bool("portal.jwt_enabled"),
-			JWTSecret:       ko.String("portal.jwt_secret"),
-			SessionLifetime: ko.Duration("portal.session_lifetime"),
-		},
+		Config:       portalConfigFromKo(),
 	})
 	if err != nil {
 		log.Fatalf("error initializing portal manager: %v", err)

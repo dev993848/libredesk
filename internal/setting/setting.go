@@ -55,6 +55,7 @@ func New(opts Opts) (*Manager, error) {
 	encryptedFields := map[string]bool{
 		"notification.email.password":         true,
 		"notification.push.vapid_private_key": true,
+		"portal.jwt_secret":                   true,
 	}
 
 	return &Manager{

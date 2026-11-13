@@ -64,6 +64,8 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Settings.
 	g.GET("/api/v1/settings/general", auth(handleGetGeneralSettings))
 	g.PUT("/api/v1/settings/general", perm(clearsHCCache(handleUpdateGeneralSettings), "general_settings:manage"))
+	g.GET("/api/v1/settings/portal", perm(handleGetPortalSettings, "general_settings:manage"))
+	g.PUT("/api/v1/settings/portal", perm(handleUpdatePortalSettings, "general_settings:manage"))
 	g.GET("/api/v1/settings/notifications/email", perm(handleGetEmailNotificationSettings, "notification_settings:manage"))
 	g.PUT("/api/v1/settings/notifications/email", perm(handleUpdateEmailNotificationSettings, "notification_settings:manage"))
 
@@ -257,6 +259,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/reports/overview/csat", perm(handleOverviewCSAT, "reports:manage"))
 	g.GET("/api/v1/reports/overview/messages", perm(handleOverviewMessageVolume, "reports:manage"))
 	g.GET("/api/v1/reports/overview/tags", perm(handleOverviewTagDistribution, "reports:manage"))
+	g.GET("/api/v1/reports/overview/time", perm(handleOverviewTime, "reports:manage"))
 
 	// Templates.
 	g.GET("/api/v1/templates", perm(handleGetTemplates, "templates:manage"))
