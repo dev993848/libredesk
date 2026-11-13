@@ -1700,6 +1700,7 @@
   "portal.status.resolved": "Resolved",
   "portal.status.waiting": "Waiting",
   "portal.time.hour": "h",
+  "portal.time.lessThanMinute": "less than a minute",
   "portal.time.minute": "min",
   "portal.time.spent": "Time spent: {duration}",
   "portal.title": "Customer portal",

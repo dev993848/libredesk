@@ -14,7 +14,9 @@ import (
 )
 
 type fakeConversationStore struct {
-	messages []cmodels.Message
+	messages      []cmodels.Message
+	livechatCalls int
+	whatsappCalls int
 }
 
 func (f *fakeConversationStore) GetAllConversationMessages(string, *bool, []string, int) ([]cmodels.Message, error) {
@@ -32,6 +34,12 @@ func (f *fakeConversationStore) ProcessIncomingMessage(cmodels.IncomingMessage) 
 }
 
 func (f *fakeConversationStore) ProcessIncomingLiveChatMessage(cmodels.Message) (cmodels.Message, error) {
+	f.livechatCalls++
+	return cmodels.Message{}, nil
+}
+
+func (f *fakeConversationStore) ProcessIncomingWhatsAppMessage(cmodels.Message, bool, time.Time) (cmodels.Message, error) {
+	f.whatsappCalls++
 	return cmodels.Message{}, nil
 }
 
@@ -228,5 +236,25 @@ func TestGetConversationMapsPublicMessages(t *testing.T) {
 	}
 	if conv.Messages[0].AuthorName != "Ivan Petrov" || conv.Messages[1].AuthorName != "System" {
 		t.Fatalf("unexpected authors: %+v", conv.Messages)
+	}
+}
+
+func TestProcessContactMessageUsesChannelProcessing(t *testing.T) {
+	db := testutil.NewDB(t, "portal_channel")
+	store := &fakeConversationStore{}
+	m := newTestManager(t, db, store)
+
+	if _, err := m.ProcessContactMessage(cmodels.Conversation{InboxChannel: "whatsapp"}, cmodels.Message{}); err != nil {
+		t.Fatalf("whatsapp message: %v", err)
+	}
+	if store.whatsappCalls != 1 || store.livechatCalls != 0 {
+		t.Fatalf("whatsapp calls=%d livechat calls=%d", store.whatsappCalls, store.livechatCalls)
+	}
+
+	if _, err := m.ProcessContactMessage(cmodels.Conversation{InboxChannel: "email"}, cmodels.Message{}); err != nil {
+		t.Fatalf("email message: %v", err)
+	}
+	if store.livechatCalls != 1 {
+		t.Fatalf("livechat calls=%d, want 1", store.livechatCalls)
 	}
 }

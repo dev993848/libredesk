@@ -407,6 +407,9 @@ func handlePortalUploadAttachment(r *fastglue.Request) error {
 	if err != nil || conv.ContactID != contact.ID {
 		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundConversation"), nil, envelope.NotFoundError)
 	}
+	if err := app.portal.CanReply(conv); err != nil {
+		return sendErrorEnvelope(r, err)
+	}
 
 	form, err := r.RequestCtx.MultipartForm()
 	if err != nil {
@@ -445,7 +448,7 @@ func handlePortalUploadAttachment(r *fastglue.Request) error {
 		return r.SendErrorEnvelope(http.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
 	}
 
-	msg, err := app.conversation.ProcessIncomingLiveChatMessage(cmodels.Message{
+	msg, err := app.portal.ProcessContactMessage(conv, cmodels.Message{
 		ConversationUUID: conv.UUID,
 		ConversationID:   conv.ID,
 		SenderID:         contact.ID,

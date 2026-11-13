@@ -1700,6 +1700,7 @@
   "portal.status.resolved": "Решён",
   "portal.status.waiting": "Ожидает ответа",
   "portal.time.hour": "ч",
+  "portal.time.lessThanMinute": "меньше минуты",
   "portal.time.minute": "мин",
   "portal.time.spent": "Затрачено: {duration}",
   "portal.title": "Личный кабинет",

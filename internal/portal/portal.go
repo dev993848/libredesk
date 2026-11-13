@@ -47,6 +47,7 @@ type ConversationStore interface {
 	SignAttachmentURLs(attachments attachment.Attachments)
 	ProcessIncomingMessage(in cmodels.IncomingMessage) (cmodels.Message, error)
 	ProcessIncomingLiveChatMessage(msg cmodels.Message) (cmodels.Message, error)
+	ProcessIncomingWhatsAppMessage(msg cmodels.Message, isNewConversation bool, inboundAt time.Time) (cmodels.Message, error)
 }
 
 // Config holds the portal runtime configuration.
@@ -373,7 +374,7 @@ func (m *Manager) Reply(contactID int, uuid, content string) (string, error) {
 		return "", err
 	}
 
-	msg, err := m.conv.ProcessIncomingLiveChatMessage(cmodels.Message{
+	msg, err := m.ProcessContactMessage(conv, cmodels.Message{
 		ConversationUUID: conv.UUID,
 		ConversationID:   conv.ID,
 		SenderID:         contactID,
@@ -389,6 +390,19 @@ func (m *Manager) Reply(contactID int, uuid, content string) (string, error) {
 		return "", envelope.NewError(envelope.GeneralError, m.i18n.T("globals.messages.errorSendingMessage"), nil)
 	}
 	return msg.UUID, nil
+}
+
+// ProcessContactMessage stores an inbound contact message using the conversation's channel rules.
+func (m *Manager) ProcessContactMessage(conv cmodels.Conversation, msg cmodels.Message) (cmodels.Message, error) {
+	if conv.InboxChannel == "whatsapp" {
+		return m.conv.ProcessIncomingWhatsAppMessage(msg, false, time.Now())
+	}
+	return m.conv.ProcessIncomingLiveChatMessage(msg)
+}
+
+// CanReply enforces channel-specific reply rules for customer messages.
+func (m *Manager) CanReply(conv cmodels.Conversation) error {
+	return m.canReply(conv)
 }
 
 // canReply enforces channel-specific reply rules for customer replies.

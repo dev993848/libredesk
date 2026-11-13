@@ -1,7 +1,16 @@
 export function formatDuration(seconds, t) {
   const total = Math.max(0, Math.round(Number(seconds) || 0))
-  const hours = Math.floor(total / 3600)
-  const minutes = Math.round((total % 3600) / 60)
+  if (total === 0) {
+    return `0 ${t('portal.time.minute')}`
+  }
+
+  const totalMinutes = Math.round(total / 60)
+  if (totalMinutes === 0) {
+    return t('portal.time.lessThanMinute')
+  }
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
 
   if (hours > 0 && minutes > 0) {
     return `${hours} ${t('portal.time.hour')} ${minutes} ${t('portal.time.minute')}`
