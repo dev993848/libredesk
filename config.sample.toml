@@ -195,8 +195,6 @@ session_lifetime = "720h"
 magic_link_ttl = "15m"
 # Inbox for new tickets created from the portal (0 = disabled).
 default_inbox_id = 0
-# Public URL of the portal when it is served from a different host (empty = app root URL).
-root_url = ""
 # Allow exchanging a signed JWT for a portal session.
 jwt_enabled = false
 # HMAC secret used to verify portal JWTs.

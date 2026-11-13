@@ -16,7 +16,6 @@ const inboxes = ref([])
 const form = ref({
   enabled: true,
   defaultInboxID: 0,
-  rootURL: '',
   jwtEnabled: false,
   jwtSecret: '',
   sessionLifetime: '720h',
@@ -35,7 +34,6 @@ async function load() {
     form.value = {
       enabled: s['portal.enabled'] !== false,
       defaultInboxID: s['portal.default_inbox_id'] || 0,
-      rootURL: s['portal.root_url'] || '',
       jwtEnabled: !!s['portal.jwt_enabled'],
       jwtSecret: s['portal.jwt_secret'] || '',
       sessionLifetime: s['portal.session_lifetime'] || '720h',
@@ -57,7 +55,6 @@ async function save() {
     await api.updatePortalSettings({
       'portal.enabled': form.value.enabled,
       'portal.default_inbox_id': Number(form.value.defaultInboxID) || 0,
-      'portal.root_url': form.value.rootURL,
       'portal.jwt_enabled': form.value.jwtEnabled,
       'portal.jwt_secret': form.value.jwtSecret,
       'portal.session_lifetime': form.value.sessionLifetime,
@@ -102,12 +99,6 @@ onMounted(load)
           </option>
         </select>
         <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.portal.defaultInboxHint') }}</p>
-      </div>
-
-      <div>
-        <label class="mb-2 block text-sm font-medium">{{ t('admin.portal.rootURL') }}</label>
-        <Input v-model="form.rootURL" placeholder="https://support.example.com" />
-        <p class="mt-1 text-xs text-muted-foreground">{{ t('admin.portal.rootURLHint') }}</p>
       </div>
 
       <label class="flex items-center gap-2 text-sm">

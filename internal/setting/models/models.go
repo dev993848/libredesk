@@ -33,7 +33,6 @@ type EmailNotification struct {
 type Portal struct {
 	Enabled         bool   `json:"portal.enabled" db:"portal.enabled"`
 	DefaultInboxID  int    `json:"portal.default_inbox_id" db:"portal.default_inbox_id"`
-	RootURL         string `json:"portal.root_url" db:"portal.root_url"`
 	JWTEnabled      bool   `json:"portal.jwt_enabled" db:"portal.jwt_enabled"`
 	JWTSecret       string `json:"portal.jwt_secret" db:"portal.jwt_secret"`
 	SessionLifetime string `json:"portal.session_lifetime" db:"portal.session_lifetime"`

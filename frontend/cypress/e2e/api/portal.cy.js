@@ -24,7 +24,6 @@ describe('API: portal settings', () => {
       expect(status).to.eq(200)
       expect(body.data).to.have.property('portal.enabled')
       expect(body.data).to.have.property('portal.default_inbox_id')
-      expect(body.data).to.have.property('portal.root_url')
       expect(body.data).to.have.property('portal.jwt_enabled')
       expect(body.data).to.have.property('portal.session_lifetime')
       expect(body.data).to.have.property('portal.magic_link_ttl')
@@ -44,24 +43,6 @@ describe('API: portal settings', () => {
       expect(body.data['portal.session_lifetime']).to.eq('24h')
       expect(body.data['portal.magic_link_ttl']).to.eq('10m')
     })
-  })
-
-  it('normalizes the public portal URL', () => {
-    cy.api('PUT', '/api/v1/settings/portal', {
-      ...original,
-      'portal.root_url': 'https://portal.example.com/'
-    }).its('status').should('eq', 200)
-
-    cy.api('GET', '/api/v1/settings/portal').then(({ body }) => {
-      expect(body.data['portal.root_url']).to.eq('https://portal.example.com')
-    })
-  })
-
-  it('rejects a public portal URL without a scheme', () => {
-    cy.api('PUT', '/api/v1/settings/portal', {
-      ...original,
-      'portal.root_url': 'portal.example.com'
-    }, { failOnStatusCode: false }).its('status').should('be.gte', 400)
   })
 
   it('rejects a weak JWT secret when JWT sign-in is enabled', () => {

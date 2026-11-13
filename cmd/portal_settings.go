@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/url"
 	"strings"
 	"time"
 
@@ -86,14 +85,6 @@ func validatePortalSettings(app *App, req *models.Portal) error {
 	req.JWTSecret = strings.TrimSpace(req.JWTSecret)
 	if req.JWTEnabled && len(req.JWTSecret) < 32 {
 		return envelope.NewError(envelope.InputError, app.i18n.T("portal.jwtSecretWeak"), nil)
-	}
-
-	req.RootURL = strings.TrimRight(strings.TrimSpace(req.RootURL), "/")
-	if req.RootURL != "" {
-		u, err := url.Parse(req.RootURL)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-			return envelope.NewError(envelope.InputError, app.i18n.T("portal.invalidRootURL"), nil)
-		}
 	}
 	return nil
 }

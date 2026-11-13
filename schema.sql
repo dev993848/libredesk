@@ -1174,7 +1174,6 @@ VALUES
     ('notification.push.vapid_private_key', '""'::jsonb),
     ('portal.enabled', 'true'::jsonb),
     ('portal.default_inbox_id', '0'::jsonb),
-    ('portal.root_url', '""'::jsonb),
     ('portal.jwt_enabled', 'false'::jsonb),
     ('portal.jwt_secret', '""'::jsonb),
     ('portal.session_lifetime', '"720h"'::jsonb),
