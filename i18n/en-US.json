@@ -1808,6 +1808,7 @@
   "timeTracking.billable": "Billable",
   "timeTracking.billableFlag": "Billable time",
   "timeTracking.confirmDelete": "Delete this time entry?",
+  "timeTracking.edit": "Edit",
   "timeTracking.empty": "No time entries yet.",
   "timeTracking.minutes": "Minutes",
   "timeTracking.noRunningTimer": "No timer is running.",

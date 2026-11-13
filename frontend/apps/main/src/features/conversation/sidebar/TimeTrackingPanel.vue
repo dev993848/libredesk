@@ -22,6 +22,10 @@ const minutes = ref('')
 const note = ref('')
 const billable = ref(true)
 const saving = ref(false)
+const editingId = ref(null)
+const editMinutes = ref('')
+const editNote = ref('')
+const editBillable = ref(true)
 
 const uuid = computed(() => conversationStore.current?.uuid)
 const activeHere = computed(() => hasActive.value && active.value?.conversation_id === conversationStore.current?.id)
@@ -75,6 +79,36 @@ async function addManual() {
     })
     minutes.value = ''
     note.value = ''
+    await load()
+  } catch (err) {
+    handleHTTPError(err, t)
+  } finally {
+    saving.value = false
+  }
+}
+
+function startEdit(entry) {
+  editingId.value = entry.id
+  editMinutes.value = String(Math.max(1, Math.round((entry.duration_seconds || 0) / 60)))
+  editNote.value = entry.note || ''
+  editBillable.value = !!entry.billable
+}
+
+function cancelEdit() {
+  editingId.value = null
+}
+
+async function saveEdit(entry) {
+  const mins = Number(editMinutes.value)
+  if (!mins || mins <= 0) return
+  saving.value = true
+  try {
+    await api.put(`/api/v1/time-entries/${entry.id}`, {
+      duration_seconds: Math.round(mins * 60),
+      note: editNote.value.trim(),
+      billable: editBillable.value,
+    })
+    editingId.value = null
     await load()
   } catch (err) {
     handleHTTPError(err, t)
@@ -140,19 +174,46 @@ onMounted(load)
         class="rounded-md border border-border px-3 py-2 text-sm"
       >
         <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <p class="font-medium">
-              {{ formatDuration(entry.duration_seconds, false) }}
-              <span v-if="!entry.ended_at" class="text-xs text-muted-foreground">({{ t('timeTracking.running') }})</span>
-            </p>
-            <p class="truncate text-xs text-muted-foreground">
-              {{ entry.user_name || '—' }} · {{ new Date(entry.started_at).toLocaleString() }}
-            </p>
-            <p v-if="entry.note" class="mt-1 text-xs text-muted-foreground">{{ entry.note }}</p>
+          <div class="min-w-0 flex-1">
+            <template v-if="editingId === entry.id">
+              <div class="space-y-2">
+                <div class="flex gap-2">
+                  <Input v-model="editMinutes" type="number" min="1" step="1" class="w-24" :placeholder="t('timeTracking.minutes')" />
+                  <Input v-model="editNote" class="flex-1" :placeholder="t('timeTracking.note')" />
+                </div>
+                <label class="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input v-model="editBillable" type="checkbox" class="size-3.5" />
+                  {{ t('timeTracking.billableFlag') }}
+                </label>
+                <div class="flex gap-2">
+                  <Button size="xs" :disabled="saving || !editMinutes" @click="saveEdit(entry)">
+                    {{ t('globals.messages.save') }}
+                  </Button>
+                  <Button variant="ghost" size="xs" @click="cancelEdit">
+                    {{ t('globals.messages.cancel') }}
+                  </Button>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <p class="font-medium">
+                {{ formatDuration(entry.duration_seconds, false) }}
+                <span v-if="!entry.ended_at" class="text-xs text-muted-foreground">({{ t('timeTracking.running') }})</span>
+              </p>
+              <p class="truncate text-xs text-muted-foreground">
+                {{ entry.user_name || '—' }} · {{ new Date(entry.started_at).toLocaleString() }}
+              </p>
+              <p v-if="entry.note" class="mt-1 text-xs text-muted-foreground">{{ entry.note }}</p>
+            </template>
           </div>
-          <Button variant="ghost" size="xs" @click="removeEntry(entry)">
-            {{ t('globals.messages.delete') }}
-          </Button>
+          <div v-if="editingId !== entry.id" class="flex gap-1">
+            <Button v-if="entry.ended_at" variant="ghost" size="xs" @click="startEdit(entry)">
+              {{ t('timeTracking.edit') }}
+            </Button>
+            <Button variant="ghost" size="xs" @click="removeEntry(entry)">
+              {{ t('globals.messages.delete') }}
+            </Button>
+          </div>
         </div>
       </div>
       <p v-if="!entries.length" class="text-sm text-muted-foreground">{{ t('timeTracking.empty') }}</p>

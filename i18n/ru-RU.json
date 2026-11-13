@@ -1808,6 +1808,7 @@
   "timeTracking.billable": "Оплачиваемое",
   "timeTracking.billableFlag": "Оплачиваемое время",
   "timeTracking.confirmDelete": "Удалить эту запись времени?",
+  "timeTracking.edit": "Изменить",
   "timeTracking.empty": "Записей пока нет.",
   "timeTracking.minutes": "Минуты",
   "timeTracking.noRunningTimer": "Запущенного таймера нет.",
