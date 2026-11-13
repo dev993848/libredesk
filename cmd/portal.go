@@ -535,6 +535,9 @@ func handlePortalUploadAttachment(r *fastglue.Request) error {
 
 // portalBaseURL returns the externally reachable base URL of the app.
 func portalBaseURL(r *fastglue.Request, app *App) string {
+	if root := app.portal.Config().RootURL; root != "" {
+		return strings.TrimRight(root, "/")
+	}
 	if c, ok := app.consts.Load().(*constants); ok && c != nil && c.AppBaseURL != "" {
 		return strings.TrimRight(c.AppBaseURL, "/")
 	}

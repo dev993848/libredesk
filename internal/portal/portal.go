@@ -55,6 +55,7 @@ type Config struct {
 	Enabled         bool
 	MagicLinkTTL    time.Duration
 	DefaultInboxID  int
+	RootURL         string
 	JWTEnabled      bool
 	JWTSecret       string
 	SessionLifetime time.Duration

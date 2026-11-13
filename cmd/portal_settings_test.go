@@ -14,6 +14,7 @@ func TestValidatePortalSettings(t *testing.T) {
 		wantTTL     string
 		wantSession string
 		wantSecret  string
+		wantRoot    string
 	}{
 		{
 			name:        "empty lifetimes fall back to defaults",
@@ -27,6 +28,23 @@ func TestValidatePortalSettings(t *testing.T) {
 			wantTTL:     "20m",
 			wantSession: "48h",
 			wantSecret:  "secret",
+		},
+		{
+			name:        "trims a trailing slash from the portal root URL",
+			req:         models.Portal{RootURL: " https://support.example.com/ "},
+			wantTTL:     "15m",
+			wantSession: "720h",
+			wantRoot:    "https://support.example.com",
+		},
+		{
+			name:    "rejects a portal root URL without a scheme",
+			req:     models.Portal{RootURL: "support.example.com"},
+			wantErr: true,
+		},
+		{
+			name:    "rejects a non-http portal root URL",
+			req:     models.Portal{RootURL: "ftp://support.example.com"},
+			wantErr: true,
 		},
 		{
 			name:    "rejects a sign-in link lifetime below one minute",
@@ -81,6 +99,9 @@ func TestValidatePortalSettings(t *testing.T) {
 			}
 			if tc.wantSecret != "" && tc.req.JWTSecret != tc.wantSecret {
 				t.Fatalf("jwt secret = %q, want %q", tc.req.JWTSecret, tc.wantSecret)
+			}
+			if tc.wantRoot != "" && tc.req.RootURL != tc.wantRoot {
+				t.Fatalf("root url = %q, want %q", tc.req.RootURL, tc.wantRoot)
 			}
 		})
 	}

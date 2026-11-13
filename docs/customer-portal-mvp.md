@@ -339,7 +339,7 @@ Billable-колонка заводится в схеме, но в MVP не по�
 - `cmd/init.go`: включить `frontend/dist/portal` в локальный FS.
 - `cmd/handlers.go`: `GET /portal`, `/portal/assets/{all:*}`, fallback на `index.html` (по образцу `/widget`).
 - `cmd/i18n.go` не меняется — пакеты общие.
-- `config.sample.toml`: `[portal] enabled`, `session_lifetime`, `magic_link_ttl`, `default_inbox_id`, `jwt_enabled`; `[rate_limit.portal]`.
+- `config.sample.toml`: `[portal] enabled`, `session_lifetime`, `magic_link_ttl`, `default_inbox_id`, `root_url`, `jwt_enabled`; `[rate_limit.portal]`.
 - Админка: новый раздел «Портал клиентов» — включение, инбокс по умолчанию, JWT-секрет (показывается один раз), срок сессии.
 - Права: новая константа в `internal/authz/models`, добавление в список прав админ-роли (`schema.sql` + миграция), экран ролей.
 

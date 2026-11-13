@@ -965,6 +965,7 @@ func portalConfigFromKo() portal.Config {
 		Enabled:         enabled,
 		MagicLinkTTL:    ttl,
 		DefaultInboxID:  ko.Int("portal.default_inbox_id"),
+		RootURL:         strings.TrimRight(ko.String("portal.root_url"), "/"),
 		JWTEnabled:      ko.Bool("portal.jwt_enabled"),
 		JWTSecret:       ko.String("portal.jwt_secret"),
 		SessionLifetime: ko.Duration("portal.session_lifetime"),
