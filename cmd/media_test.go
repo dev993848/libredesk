@@ -41,7 +41,13 @@ func TestPrepareImageUploadAllowsOversizedImageWithoutThumbnail(t *testing.T) {
 
 func TestServeMediaFileSandboxesDownloads(t *testing.T) {
 	const uuid = "0b7a3c1e-2f4d-4b8a-9c6e-1d2f3a4b5c6d"
-	dir := t.TempDir()
+	// fasthttp's global file cache keeps the served file open for a few
+	// seconds, which prevents t.TempDir from cleaning up on Windows.
+	dir, err := os.MkdirTemp("", "libredesk-media-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)
 	if err := os.WriteFile(filepath.Join(dir, uuid), svg, 0o600); err != nil {
 		t.Fatal(err)
@@ -95,6 +101,9 @@ func TestServeMediaFileSandboxesDownloads(t *testing.T) {
 			if got := string(h.Peek("Content-Security-Policy")) == "sandbox"; got != tt.wantSandbox {
 				t.Fatalf("sandboxed = %v, want %v", got, tt.wantSandbox)
 			}
+			// fasthttp.ServeFile streams the file; close it so Windows can
+			// remove the temporary directory during test cleanup.
+			_ = req.RequestCtx.Response.CloseBodyStream()
 		})
 	}
 }

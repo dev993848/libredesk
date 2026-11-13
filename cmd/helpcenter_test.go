@@ -231,14 +231,24 @@ func FuzzResolveQueryLocale(f *testing.F) {
 
 func TestMatchLangFile(t *testing.T) {
 	dir := t.TempDir()
-	for _, code := range []string{"en-US", "de-DE", "pt-BR", "pt-PT", "es-ES", "zh-CN"} {
-		if err := os.WriteFile(filepath.Join(dir, code+".json"), []byte("{}"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	fs, err := stuffbin.NewLocalFS("/", dir+":i18n")
+	// Build the in-memory filesystem directly: stuffbin.NewLocalFS leaves file
+	// handles open, which breaks temporary directory cleanup on Windows.
+	fs, err := stuffbin.NewFS()
 	if err != nil {
 		t.Fatalf("creating test filesystem: %v", err)
+	}
+	for _, code := range []string{"en-US", "de-DE", "pt-BR", "pt-PT", "es-ES", "zh-CN"} {
+		p := filepath.Join(dir, code+".json")
+		if err := os.WriteFile(p, []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		info, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := fs.Add(stuffbin.NewFile("/i18n/"+code+".json", info, []byte("{}"))); err != nil {
+			t.Fatalf("adding %s to test filesystem: %v", code, err)
+		}
 	}
 	for _, tt := range []struct {
 		requested string
