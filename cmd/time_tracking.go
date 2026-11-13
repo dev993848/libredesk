@@ -2,13 +2,16 @@ package main
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	amodels "github.com/abhinavxd/libredesk/internal/auth/models"
+	"github.com/abhinavxd/libredesk/internal/authz"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
+	"github.com/abhinavxd/libredesk/internal/timetracking"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/zerodha/fastglue"
 )
@@ -169,7 +172,7 @@ func handleTimeUpdate(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	if err := canManageEntry(r, auser.ID, entry.UserID.Int); err != nil {
+	if err := canManageEntry(r, auser.ID, entry); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
@@ -207,7 +210,7 @@ func handleTimeDelete(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	if err := canManageEntry(r, auser.ID, entry.UserID.Int); err != nil {
+	if err := canManageEntry(r, auser.ID, entry); err != nil {
 		return sendErrorEnvelope(r, err)
 	}
 
@@ -217,21 +220,37 @@ func handleTimeDelete(r *fastglue.Request) error {
 	return r.SendEnvelope(map[string]any{"deleted": true})
 }
 
+// canManageTimeEntry reports whether the actor may edit or delete a time entry.
+// The entry author is always allowed. Other agents need time_tracking:manage and
+// read access to the entry's conversation, which keeps team-scoped leads inside
+// their own teams.
+func canManageTimeEntry(user umodels.User, entry timetracking.Entry, conv cmodels.Conversation) bool {
+	if entry.UserID.Valid && user.ID == entry.UserID.Int {
+		return true
+	}
+	if !slices.Contains(user.Permissions, "time_tracking:manage") {
+		return false
+	}
+	return authz.CanReadAssignment(user, conv.AssignedUserID, conv.AssignedTeamID)
+}
+
 // canManageEntry allows the entry author and holders of time_tracking:manage.
-func canManageEntry(r *fastglue.Request, actorID, ownerID int) error {
+// Managers are additionally restricted to conversations they can read, so a team
+// lead with team-scoped read permissions can only manage entries within their teams.
+func canManageEntry(r *fastglue.Request, actorID int, entry timetracking.Entry) error {
 	app := r.Context.(*App)
-	if actorID == ownerID {
+	if entry.UserID.Valid && actorID == entry.UserID.Int {
 		return nil
 	}
 	user, err := app.user.GetAgentCachedOrLoad(actorID)
 	if err != nil {
 		return err
 	}
-	ok, err := app.authz.Enforce(user, "time_tracking", "manage")
+	conv, err := app.conversation.GetConversation(entry.ConversationID, "", "")
 	if err != nil {
 		return err
 	}
-	if !ok {
+	if !canManageTimeEntry(user, entry, conv) {
 		return envelope.NewError(envelope.PermissionError, app.i18n.T("status.deniedPermission"), nil)
 	}
 	return nil

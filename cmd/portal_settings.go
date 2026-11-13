@@ -28,32 +28,8 @@ func handleUpdatePortalSettings(r *fastglue.Request) error {
 	if err := r.Decode(&req, "json"); err != nil {
 		return r.SendErrorEnvelope(400, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
 	}
-
-	if req.DefaultInboxID > 0 {
-		if _, err := app.portal.GetInbox(req.DefaultInboxID); err != nil {
-			return sendErrorEnvelope(r, err)
-		}
-	}
-
-	req.MagicLinkTTL = strings.TrimSpace(req.MagicLinkTTL)
-	if req.MagicLinkTTL == "" {
-		req.MagicLinkTTL = "15m"
-	}
-	if d, err := time.ParseDuration(req.MagicLinkTTL); err != nil || d < time.Minute {
-		return r.SendErrorEnvelope(400, app.i18n.T("validation.invalidDuration"), nil, envelope.InputError)
-	}
-
-	req.SessionLifetime = strings.TrimSpace(req.SessionLifetime)
-	if req.SessionLifetime == "" {
-		req.SessionLifetime = "720h"
-	}
-	if d, err := time.ParseDuration(req.SessionLifetime); err != nil || d < time.Hour {
-		return r.SendErrorEnvelope(400, app.i18n.T("validation.invalidDuration"), nil, envelope.InputError)
-	}
-
-	req.JWTSecret = strings.TrimSpace(req.JWTSecret)
-	if req.JWTEnabled && len(req.JWTSecret) < 32 {
-		return r.SendErrorEnvelope(400, app.i18n.T("portal.jwtSecretWeak"), nil, envelope.InputError)
+	if err := validatePortalSettings(app, &req); err != nil {
+		return sendErrorEnvelope(r, err)
 	}
 
 	if err := app.setting.Update(req); err != nil {
@@ -65,4 +41,35 @@ func handleUpdatePortalSettings(r *fastglue.Request) error {
 	app.portal.Reload(portalConfigFromKo())
 
 	return handleGetPortalSettings(r)
+}
+
+// validatePortalSettings normalizes and validates the submitted portal settings.
+func validatePortalSettings(app *App, req *models.Portal) error {
+	if req.DefaultInboxID > 0 {
+		if _, err := app.portal.GetInbox(req.DefaultInboxID); err != nil {
+			return err
+		}
+	}
+
+	req.MagicLinkTTL = strings.TrimSpace(req.MagicLinkTTL)
+	if req.MagicLinkTTL == "" {
+		req.MagicLinkTTL = "15m"
+	}
+	if d, err := time.ParseDuration(req.MagicLinkTTL); err != nil || d < time.Minute {
+		return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidDuration"), nil)
+	}
+
+	req.SessionLifetime = strings.TrimSpace(req.SessionLifetime)
+	if req.SessionLifetime == "" {
+		req.SessionLifetime = "720h"
+	}
+	if d, err := time.ParseDuration(req.SessionLifetime); err != nil || d < time.Hour {
+		return envelope.NewError(envelope.InputError, app.i18n.T("validation.invalidDuration"), nil)
+	}
+
+	req.JWTSecret = strings.TrimSpace(req.JWTSecret)
+	if req.JWTEnabled && len(req.JWTSecret) < 32 {
+		return envelope.NewError(envelope.InputError, app.i18n.T("portal.jwtSecretWeak"), nil)
+	}
+	return nil
 }
