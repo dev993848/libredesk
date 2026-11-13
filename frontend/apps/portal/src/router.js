@@ -17,6 +17,12 @@ export const routes = [
     meta: { auth: true },
   },
   {
+    path: '/new',
+    name: 'new-conversation',
+    component: () => import('./views/NewConversationView.vue'),
+    meta: { auth: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/',
   },

@@ -151,6 +151,10 @@
             <ConversationInfo />
           </AccordionContent>
 
+          <AccordionContent v-else-if="section.id === 'time'" class="accordion-content">
+            <TimeTrackingPanel />
+          </AccordionContent>
+
           <AccordionContent
             v-else-if="section.id === 'contact_attributes'"
             class="accordion-content"
@@ -217,6 +221,7 @@ import { useCustomAttributeStore } from '@/stores/customAttributes'
 import ContactNotes from '@/features/contact/ContactNotes.vue'
 import PreviousConversations from '@/features/conversation/sidebar/PreviousConversations.vue'
 import ConversationSideBarPageVisits from '@/features/conversation/sidebar/ConversationSideBarPageVisits.vue'
+import TimeTrackingPanel from '@/features/conversation/sidebar/TimeTrackingPanel.vue'
 import SelectComboBox from '@main/components/combobox/SelectCombobox.vue'
 import SelectAgentCombobox from '@main/components/combobox/SelectAgentCombobox.vue'
 import SelectTeamCombobox from '@main/components/combobox/SelectTeamCombobox.vue'
@@ -239,6 +244,7 @@ customAttributeStore.fetchCustomAttributes()
 const sections = computed(() => [
   { id: 'actions', label: t('globals.terms.action', 2) },
   { id: 'information', label: t('conversation.sidebar.information') },
+  { id: 'time', label: t('timeTracking.title') },
   {
     id: 'contact_attributes',
     label: t('conversation.sidebar.contactAttributes'),

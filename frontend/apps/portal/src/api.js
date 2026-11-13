@@ -42,5 +42,12 @@ export const requestMagicLink = (email) => api.post('/api/v1/portal/auth/magic-l
 export const logout = () => api.post('/api/v1/portal/auth/logout')
 export const getMe = () => api.get('/api/v1/portal/me')
 export const listConversations = (params) => api.get('/api/v1/portal/conversations', { params })
+export const createConversation = (data) => api.post('/api/v1/portal/conversations', data)
 export const getConversation = (uuid) => api.get(`/api/v1/portal/conversations/${uuid}`)
+export const replyToConversation = (uuid, message) => api.post(`/api/v1/portal/conversations/${uuid}/messages`, { message })
+export const uploadAttachment = (uuid, file) => {
+  const form = new FormData()
+  form.append('files', file)
+  return api.post(`/api/v1/portal/conversations/${uuid}/attachments`, form)
+}
 export const markSeen = (uuid) => api.post(`/api/v1/portal/conversations/${uuid}/seen`)

@@ -36,11 +36,23 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	// Customer portal API.
 	g.POST("/api/v1/portal/auth/magic-link", rateLimit(handlePortalMagicLink, "portal_auth"))
 	g.GET("/api/v1/portal/auth/verify", rateLimit(handlePortalVerify, "portal_auth"))
+	g.POST("/api/v1/portal/auth/exchange", rateLimit(handlePortalAuthExchange, "portal_auth"))
 	g.POST("/api/v1/portal/auth/logout", rateLimit(portalAuth(handlePortalLogout), "portal"))
 	g.GET("/api/v1/portal/me", rateLimit(portalAuth(handlePortalMe), "portal"))
 	g.GET("/api/v1/portal/conversations", rateLimit(portalAuth(handlePortalListConversations), "portal"))
+	g.POST("/api/v1/portal/conversations", rateLimit(portalAuth(handlePortalCreateConversation), "portal"))
 	g.GET("/api/v1/portal/conversations/{uuid}", rateLimit(portalAuth(handlePortalGetConversation), "portal"))
+	g.POST("/api/v1/portal/conversations/{uuid}/messages", rateLimit(portalAuth(handlePortalReply), "portal"))
+	g.POST("/api/v1/portal/conversations/{uuid}/attachments", rateLimit(portalAuth(handlePortalUploadAttachment), "portal"))
 	g.POST("/api/v1/portal/conversations/{uuid}/seen", rateLimit(portalAuth(handlePortalMarkSeen), "portal"))
+
+	// Conversation time tracking.
+	g.POST("/api/v1/conversations/{uuid}/timer/start", auth(handleTimeStart))
+	g.POST("/api/v1/conversations/{uuid}/timer/stop", auth(handleTimeStop))
+	g.GET("/api/v1/conversations/{uuid}/time-entries", auth(handleTimeList))
+	g.POST("/api/v1/conversations/{uuid}/time-entries", auth(handleTimeAdd))
+	g.PUT("/api/v1/time-entries/{id}", auth(handleTimeUpdate))
+	g.DELETE("/api/v1/time-entries/{id}", auth(handleTimeDelete))
 
 	// Public config for app initialization.
 	g.GET("/api/v1/config", handleGetConfig)

@@ -23,6 +23,18 @@ func (f *fakeConversationStore) GetAllConversationMessages(string, *bool, []stri
 
 func (f *fakeConversationStore) SignAttachmentURLs(attachment.Attachments) {}
 
+func (f *fakeConversationStore) GetConversation(int, string, string) (cmodels.Conversation, error) {
+	return cmodels.Conversation{}, nil
+}
+
+func (f *fakeConversationStore) ProcessIncomingMessage(cmodels.IncomingMessage) (cmodels.Message, error) {
+	return cmodels.Message{}, nil
+}
+
+func (f *fakeConversationStore) ProcessIncomingLiveChatMessage(cmodels.Message) (cmodels.Message, error) {
+	return cmodels.Message{}, nil
+}
+
 func loPtr(l logf.Logger) *logf.Logger { return &l }
 
 func newTestManager(t *testing.T, db *sqlx.DB, store ConversationStore) *Manager {

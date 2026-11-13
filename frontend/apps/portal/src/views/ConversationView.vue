@@ -6,7 +6,7 @@ import { sanitize } from 'lettersanitizer'
 import { Badge } from '@shared-ui/components/ui/badge'
 import { Button } from '@shared-ui/components/ui/button'
 import { Spinner } from '@shared-ui/components/ui/spinner'
-import { appConfig, getConversation, markSeen } from '../api.js'
+import { appConfig, getConversation, markSeen, replyToConversation, uploadAttachment } from '../api.js'
 import { formatDate, formatDuration } from '../utils/format.js'
 
 const { t, locale } = useI18n()
@@ -15,6 +15,10 @@ const route = useRoute()
 const conversation = ref(null)
 const loading = ref(true)
 const error = ref('')
+const replyText = ref('')
+const sending = ref(false)
+const replyError = ref('')
+const uploading = ref(false)
 
 const statusLabel = computed(() => {
   const category = conversation.value?.status?.category
@@ -58,6 +62,40 @@ async function load() {
     error.value = err?.response?.data?.message || t('portal.error.load')
   } finally {
     loading.value = false
+  }
+}
+
+async function sendReply() {
+  const text = replyText.value.trim()
+  if (!text || sending.value) return
+  sending.value = true
+  replyError.value = ''
+  try {
+    await replyToConversation(route.params.uuid, text)
+    replyText.value = ''
+    await load()
+  } catch (err) {
+    replyError.value = err?.response?.data?.message || t('portal.reply.error')
+  } finally {
+    sending.value = false
+  }
+}
+
+async function onFiles(event) {
+  const files = Array.from(event.target.files || [])
+  if (!files.length) return
+  uploading.value = true
+  replyError.value = ''
+  try {
+    for (const file of files) {
+      await uploadAttachment(route.params.uuid, file)
+    }
+    event.target.value = ''
+    await load()
+  } catch (err) {
+    replyError.value = err?.response?.data?.message || t('portal.reply.error')
+  } finally {
+    uploading.value = false
   }
 }
 
@@ -148,6 +186,27 @@ onMounted(load)
             </div>
           </div>
         </div>
+
+        <form class="mt-6 rounded-lg border border-border bg-card p-4" @submit.prevent="sendReply">
+          <p v-if="replyError" class="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {{ replyError }}
+          </p>
+          <textarea
+            v-model="replyText"
+            rows="4"
+            :placeholder="t('portal.reply.placeholder')"
+            class="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          ></textarea>
+          <div class="mt-3 flex items-center justify-between gap-3">
+            <label class="cursor-pointer text-sm text-muted-foreground">
+              {{ uploading ? t('portal.loading') : t('portal.attach') }}
+              <input type="file" multiple class="hidden" :disabled="uploading" @change="onFiles" />
+            </label>
+            <Button type="submit" :disabled="sending || !replyText.trim()">
+              {{ sending ? t('portal.loading') : t('portal.reply.submit') }}
+            </Button>
+          </div>
+        </form>
       </template>
     </main>
   </div>

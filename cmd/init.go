@@ -55,6 +55,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/tag"
 	"github.com/abhinavxd/libredesk/internal/team"
 	tmpl "github.com/abhinavxd/libredesk/internal/template"
+	"github.com/abhinavxd/libredesk/internal/timetracking"
 	"github.com/abhinavxd/libredesk/internal/user"
 	"github.com/abhinavxd/libredesk/internal/view"
 	"github.com/abhinavxd/libredesk/internal/webhook"
@@ -937,6 +938,19 @@ func initSSRFControl() ssrf.Control {
 }
 
 // initAuth initializes the authentication manager.
+// initTimeTracking initializes the conversation time tracking manager.
+func initTimeTracking(db *sqlx.DB, i18n *i18n.I18n) *timetracking.Manager {
+	m, err := timetracking.New(timetracking.Opts{
+		DB:   db,
+		Lo:   initLogger("time_tracking"),
+		I18n: i18n,
+	})
+	if err != nil {
+		log.Fatalf("error initializing time tracking manager: %v", err)
+	}
+	return m
+}
+
 // initPortal initializes the customer portal manager.
 func initPortal(db *sqlx.DB, conv *conversation.Manager, i18n *i18n.I18n) *portal.Manager {
 	enabled := true

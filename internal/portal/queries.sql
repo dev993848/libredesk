@@ -125,3 +125,17 @@ WHERE
 UPDATE conversations
 SET contact_last_seen_at = NOW()
 WHERE uuid = $1 AND contact_id = $2;
+
+-- name: get-inbox
+SELECT
+    id,
+    "name",
+    channel,
+    config,
+    reopen_window_hours
+FROM
+    inboxes
+WHERE
+    id = $1
+    AND deleted_at IS NULL
+    AND enabled = true;

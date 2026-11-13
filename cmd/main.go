@@ -53,6 +53,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/tag"
 	"github.com/abhinavxd/libredesk/internal/team"
 	"github.com/abhinavxd/libredesk/internal/template"
+	"github.com/abhinavxd/libredesk/internal/timetracking"
 	"github.com/abhinavxd/libredesk/internal/user"
 	"github.com/abhinavxd/libredesk/internal/webhook"
 	whatsappapi "github.com/abhinavxd/libredesk/internal/whatsapp"
@@ -101,6 +102,7 @@ const (
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
 	portal             *portal.Manager
+	timeTracking       *timetracking.Manager
 	proactive          *proactive.Manager
 	ctx                context.Context
 	fs                 stuffbin.FileSystem
@@ -278,6 +280,7 @@ func main() {
 		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
 		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)
 		portalMgr                   = initPortal(db, conversation, i18n)
+		timeTracking                = initTimeTracking(db, i18n)
 		aiAgent                     = initAIAgent(db, i18n, ai, conversation, inbox, media, settings, user, notifier, rdb)
 		helpCenter                  = initHelpCenter(db, i18n, ai)
 		autoassigner                = initAutoAssigner(team, user, conversation)
@@ -330,6 +333,7 @@ func main() {
 		lo:               lo,
 		fs:               fs,
 		portal:           portalMgr,
+		timeTracking:     timeTracking,
 		sla:              sla,
 		oidc:             oidc,
 		i18n:             i18n,

@@ -1,16 +1,24 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"net/mail"
 	"net/url"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/abhinavxd/libredesk/internal/attachment"
+	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/httputil"
 	notifier "github.com/abhinavxd/libredesk/internal/notification"
+	"github.com/abhinavxd/libredesk/internal/portal"
 	pmodels "github.com/abhinavxd/libredesk/internal/portal/models"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	umodels "github.com/abhinavxd/libredesk/internal/user/models"
 	"github.com/valyala/fasthttp"
 	"github.com/volatiletech/null/v9"
@@ -169,6 +177,59 @@ func handlePortalVerify(r *fastglue.Request) error {
 	return r.RedirectURI("/portal", fasthttp.StatusFound, nil, "")
 }
 
+// handlePortalAuthExchange exchanges a signed JWT for a portal session.
+func handlePortalAuthExchange(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	if !app.portal.Enabled() {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("globals.messages.pageNotFound"), nil, envelope.NotFoundError)
+	}
+
+	cfg := app.portal.Config()
+	if !cfg.JWTEnabled || cfg.JWTSecret == "" {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("globals.messages.pageNotFound"), nil, envelope.NotFoundError)
+	}
+
+	var req struct {
+		JWT string `json:"jwt"`
+	}
+	if err := r.Decode(&req, "json"); err != nil {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+
+	claims, err := portal.VerifyJWT(req.JWT, cfg.JWTSecret)
+	if err != nil {
+		app.lo.Warn("portal jwt rejected", "error", err)
+		return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
+	}
+
+	var contact pmodels.Contact
+	if claims.ExternalUserID != "" {
+		contact, err = app.portal.GetContactByExternalID(claims.ExternalUserID)
+	}
+	if err != nil || contact.ID == 0 {
+		contact, err = app.portal.GetContactByEmail(claims.Email)
+	}
+	if err != nil || contact.ID == 0 {
+		app.lo.Warn("portal jwt contact not found", "external_user_id", claims.ExternalUserID, "email", claims.Email)
+		return r.SendErrorEnvelope(http.StatusUnauthorized, app.i18n.T("globals.terms.unAuthorized"), nil, envelope.UnauthorizedError)
+	}
+
+	if err := app.auth.SaveContactSession(umodels.User{
+		ID:        contact.ID,
+		Email:     null.StringFrom(contact.Email),
+		FirstName: contact.FirstName,
+		LastName:  contact.LastName,
+		Type:      umodels.UserTypeContact,
+	}, r); err != nil {
+		app.lo.Error("error creating portal session from jwt", "contact_id", contact.ID, "error", err)
+		return r.SendErrorEnvelope(http.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+	if err := app.auth.SetCSRFCookie(r); err != nil {
+		app.lo.Error("error setting portal csrf cookie", "error", err)
+	}
+	return r.SendEnvelope(contact)
+}
+
 // handlePortalLogout destroys the portal session.
 func handlePortalLogout(r *fastglue.Request) error {
 	app := r.Context.(*App)
@@ -251,6 +312,150 @@ func handlePortalMarkSeen(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	return r.SendEnvelope(map[string]any{"seen": true})
+}
+
+// handlePortalCreateConversation starts a new ticket from the portal.
+func handlePortalCreateConversation(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	contact, err := getPortalContact(r)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	var req struct {
+		Subject string `json:"subject"`
+		Message string `json:"message"`
+	}
+	if err := r.Decode(&req, "json"); err != nil {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+
+	subject := strings.TrimSpace(req.Subject)
+	message := strings.TrimSpace(req.Message)
+	if subject == "" {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "subject"), nil, envelope.InputError)
+	}
+	if len(subject) > maxChatSubjectLength {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxChatSubjectLength)), nil, envelope.InputError)
+	}
+	if message == "" {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.message}"), nil, envelope.InputError)
+	}
+	if len(message) > maxChatMessageLength {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxChatMessageLength)), nil, envelope.InputError)
+	}
+
+	uuid, err := app.portal.CreateConversation(contact, subject, message)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(map[string]any{"uuid": uuid})
+}
+
+// handlePortalReply adds a public reply to one of the contact's conversations.
+func handlePortalReply(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	contact, err := getPortalContact(r)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	var req struct {
+		Message string `json:"message"`
+	}
+	if err := r.Decode(&req, "json"); err != nil {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+	message := strings.TrimSpace(req.Message)
+	if message == "" {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.required", "name", "{globals.terms.message}"), nil, envelope.InputError)
+	}
+	if len(message) > maxChatMessageLength {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.Ts("globals.messages.maxLength", "max", strconv.Itoa(maxChatMessageLength)), nil, envelope.InputError)
+	}
+
+	uuid := r.RequestCtx.UserValue("uuid").(string)
+	messageUUID, err := app.portal.Reply(contact.ID, uuid, message)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+	return r.SendEnvelope(map[string]any{"uuid": messageUUID})
+}
+
+// handlePortalUploadAttachment adds a file as a message to one of the contact's conversations.
+func handlePortalUploadAttachment(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	contact, err := getPortalContact(r)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	uuid := r.RequestCtx.UserValue("uuid").(string)
+	conv, err := app.conversation.GetConversation(0, uuid, "")
+	if err != nil || conv.ContactID != contact.ID {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundConversation"), nil, envelope.NotFoundError)
+	}
+
+	form, err := r.RequestCtx.MultipartForm()
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+	files, ok := form.File["files"]
+	if !ok || len(files) == 0 {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("validation.notFoundFile"), nil, envelope.InputError)
+	}
+
+	fileHeader := files[0]
+	file, err := fileHeader.Open()
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+	defer file.Close()
+
+	consts := app.consts.Load().(*constants)
+	if bytesToMegabytes(fileHeader.Size) > float64(consts.MaxFileUploadSizeMB) {
+		return r.SendErrorEnvelope(
+			http.StatusRequestEntityTooLarge,
+			app.i18n.Ts("media.fileSizeTooLarge", "size", fmt.Sprintf("%dMB", consts.MaxFileUploadSizeMB)),
+			nil,
+			envelope.GeneralError,
+		)
+	}
+
+	srcFileName := stringutil.SanitizeFilename(fileHeader.Filename)
+	srcExt := strings.TrimPrefix(strings.ToLower(filepath.Ext(srcFileName)), ".")
+	if !slices.Contains(consts.AllowedUploadFileExtensions, "*") && !slices.Contains(consts.AllowedUploadFileExtensions, srcExt) {
+		return r.SendErrorEnvelope(http.StatusBadRequest, app.i18n.T("media.fileTypeNotAllowed"), nil, envelope.InputError)
+	}
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusInternalServerError, app.i18n.T("globals.messages.somethingWentWrong"), nil, envelope.GeneralError)
+	}
+
+	msg, err := app.conversation.ProcessIncomingLiveChatMessage(cmodels.Message{
+		ConversationUUID: conv.UUID,
+		ConversationID:   conv.ID,
+		SenderID:         contact.ID,
+		Type:             cmodels.MessageIncoming,
+		SenderType:       cmodels.SenderTypeContact,
+		Status:           cmodels.MessageStatusReceived,
+		Content:          "",
+		ContentType:      cmodels.ContentTypeText,
+		Private:          false,
+		Attachments: attachment.Attachments{{
+			Name:        srcFileName,
+			ContentType: fileHeader.Header.Get("Content-Type"),
+			Size:        int(fileHeader.Size),
+			Content:     content,
+			Disposition: attachment.DispositionAttachment,
+		}},
+	})
+	if err != nil {
+		app.lo.Error("error uploading portal attachment", "contact_id", contact.ID, "uuid", uuid, "error", err)
+		return r.SendErrorEnvelope(http.StatusInternalServerError, app.i18n.T("globals.messages.errorUploadingFile"), nil, envelope.GeneralError)
+	}
+	return r.SendEnvelope(map[string]any{"uuid": msg.UUID})
 }
 
 // portalBaseURL returns the externally reachable base URL of the app.

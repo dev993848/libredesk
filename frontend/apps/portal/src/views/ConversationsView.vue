@@ -87,7 +87,10 @@ onMounted(load)
           <h1 class="truncate text-lg font-semibold">{{ t('portal.conversations.title') }}</h1>
           <p class="truncate text-sm text-muted-foreground">{{ appConfig.siteName }}</p>
         </div>
-        <Button variant="ghost" size="sm" @click="signOut">{{ t('portal.logout') }}</Button>
+        <div class="flex flex-shrink-0 items-center gap-2">
+          <Button size="sm" @click="router.push({ name: 'new-conversation' })">{{ t('portal.new') }}</Button>
+          <Button variant="ghost" size="sm" @click="signOut">{{ t('portal.logout') }}</Button>
+        </div>
       </div>
     </header>
 
