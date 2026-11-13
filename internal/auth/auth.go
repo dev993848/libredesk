@@ -31,9 +31,12 @@ import (
 )
 
 const (
-	defaultSessionLifetime = 9 * time.Hour
-	sessionKeyPrefix       = "session:"
-	userSessionKeyPrefix   = "user_sessions:"
+	defaultSessionLifetime       = 9 * time.Hour
+	defaultPortalSessionLifetime = 30 * 24 * time.Hour
+	sessionKeyPrefix             = "session:"
+	userSessionKeyPrefix         = "user_sessions:"
+	portalSessionKeyPrefix       = "portal_session:"
+	portalUserSessionKeyPrefix   = "portal_user_sessions:"
 )
 
 var (
@@ -62,9 +65,10 @@ type Provider struct {
 
 // Config holds OIDC providers and cookies security settings
 type Config struct {
-	Providers       []Provider
-	SecureCookies   bool
-	SessionLifetime time.Duration
+	Providers             []Provider
+	SecureCookies         bool
+	SessionLifetime       time.Duration
+	PortalSessionLifetime time.Duration
 }
 
 type oidcProvider struct {
@@ -82,6 +86,7 @@ type Auth struct {
 	providers    map[int]oidcProvider
 	redirectURLs map[int]func() (string, error)
 	sess         *simplesessions.Manager
+	portalSess   *simplesessions.Manager
 	logger       *logf.Logger
 	rd           *redis.Client
 	oidcClient   *http.Client
@@ -122,23 +127,14 @@ func New(cfg Config, i18n *i18n.I18n, rd *redis.Client, logger *logf.Logger, dia
 	}
 	cfg.SessionLifetime = lifetime
 
-	sess := simplesessions.New(simplesessions.Options{
-		EnableAutoCreate: false,
-		SessionIDLength:  64,
-		Cookie: simplesessions.CookieOptions{
-			Name:       "libredesk_session",
-			IsHTTPOnly: true,
-			IsSecure:   cfg.SecureCookies,
-			SameSite:   http.SameSiteLaxMode,
-			MaxAge:     lifetime,
-		},
-	})
+	portalLifetime := cfg.PortalSessionLifetime
+	if portalLifetime <= 0 {
+		portalLifetime = defaultPortalSessionLifetime
+	}
+	cfg.PortalSessionLifetime = portalLifetime
 
-	st := sessredisstore.New(context.TODO(), rd)
-	st.SetPrefix(sessionKeyPrefix)
-	st.SetTTL(lifetime, false)
-	sess.UseStore(st)
-	sess.SetCookieHooks(simpleSessGetCookieCB, simpleSessSetCookieCB)
+	sess := newSessionManager("libredesk_session", sessionKeyPrefix, lifetime, cfg.SecureCookies, rd)
+	portalSess := newSessionManager("libredesk_portal", portalSessionKeyPrefix, portalLifetime, cfg.SecureCookies, rd)
 
 	return &Auth{
 		cfg:          cfg,
@@ -147,10 +143,33 @@ func New(cfg Config, i18n *i18n.I18n, rd *redis.Client, logger *logf.Logger, dia
 		providers:    providers,
 		redirectURLs: redirectURLs,
 		sess:         sess,
+		portalSess:   portalSess,
 		logger:       logger,
 		rd:           rd,
 		oidcClient:   oidcClient,
 	}, nil
+}
+
+// newSessionManager creates a session manager backed by Redis with its own cookie and key prefix.
+func newSessionManager(cookieName, prefix string, lifetime time.Duration, secure bool, rd *redis.Client) *simplesessions.Manager {
+	sess := simplesessions.New(simplesessions.Options{
+		EnableAutoCreate: false,
+		SessionIDLength:  64,
+		Cookie: simplesessions.CookieOptions{
+			Name:       cookieName,
+			IsHTTPOnly: true,
+			IsSecure:   secure,
+			SameSite:   http.SameSiteLaxMode,
+			MaxAge:     lifetime,
+		},
+	})
+
+	st := sessredisstore.New(context.TODO(), rd)
+	st.SetPrefix(prefix)
+	st.SetTTL(lifetime, false)
+	sess.UseStore(st)
+	sess.SetCookieHooks(simpleSessGetCookieCB, simpleSessSetCookieCB)
+	return sess
 }
 
 // TestProvider tests the OIDC provider url by doing a discovery on it.
@@ -492,6 +511,134 @@ func (a *Auth) DestroyUserSessions(ctx context.Context, userID int) error {
 	if err := DestroyUserSessions(ctx, a.rd, userID); err != nil {
 		a.logger.Error("error destroying user sessions", "user_id", userID, "error", err)
 		return envelope.NewError(envelope.GeneralError, a.i18n.T("globals.messages.somethingWentWrong"), nil)
+	}
+	return nil
+}
+
+// SaveContactSession creates and sets a portal session for a contact.
+func (a *Auth) SaveContactSession(user models.User, r *fastglue.Request) error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	sess, err := a.portalSess.NewSession(r, r)
+	if err != nil {
+		a.logger.Error("error creating portal session", "contact_id", user.ID, "error", err)
+		return err
+	}
+
+	indexKey := portalUserSessionKeyPrefix + strconv.Itoa(user.ID)
+	p := a.rd.TxPipeline()
+	p.SAdd(r.RequestCtx, indexKey, sess.ID())
+	p.Expire(r.RequestCtx, indexKey, a.cfg.PortalSessionLifetime)
+	if _, err := p.Exec(r.RequestCtx); err != nil {
+		a.logger.Error("error indexing portal session", "contact_id", user.ID, "error", err)
+		return err
+	}
+
+	if err := sess.SetMulti(map[string]any{
+		"id":         user.ID,
+		"indexed":    true,
+		"email":      user.Email.String,
+		"first_name": user.FirstName,
+		"last_name":  user.LastName,
+	}); err != nil {
+		a.logger.Error("error setting portal session values", "contact_id", user.ID, "error", err)
+		return err
+	}
+	return nil
+}
+
+// ValidateContactSession validates the portal session and returns the contact.
+func (a *Auth) ValidateContactSession(r *fastglue.Request) (models.User, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	sess, err := a.portalSess.Acquire(r.RequestCtx, r, r)
+	if err != nil {
+		if err != simplesessions.ErrInvalidSession {
+			a.logger.Error("error acquiring portal session", "error", err)
+		}
+		return models.User{}, err
+	}
+
+	sessVals, err := sess.GetMulti("id", "email", "first_name", "last_name", "indexed")
+	if err != nil {
+		a.logger.Error("error fetching portal session values", "error", err)
+		return models.User{}, err
+	}
+
+	var (
+		contactID, _ = sess.Int(sessVals["id"], nil)
+		email, _     = sess.String(sessVals["email"], nil)
+		firstName, _ = sess.String(sessVals["first_name"], nil)
+		lastName, _  = sess.String(sessVals["last_name"], nil)
+	)
+	if contactID > 0 {
+		indexed, err := sess.Bool(sessVals["indexed"], nil)
+		if err != nil || !indexed {
+			return models.User{}, simplesessions.ErrInvalidSession
+		}
+	}
+
+	return models.User{
+		ID:        contactID,
+		Email:     null.NewString(email, email != ""),
+		FirstName: firstName,
+		LastName:  lastName,
+		Type:      models.UserTypeContact,
+	}, nil
+}
+
+// DestroyContactSession destroys the current portal session.
+func (a *Auth) DestroyContactSession(r *fastglue.Request) error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	sess, err := a.portalSess.Acquire(r.RequestCtx, r, r)
+	if err == simplesessions.ErrInvalidSession {
+		return nil
+	}
+	if err != nil {
+		a.logger.Error("error acquiring portal session", "error", err)
+		return err
+	}
+
+	contactID, _ := sess.Int(sess.Get("id"))
+	if err := sess.Destroy(); err != nil {
+		a.logger.Error("error destroying portal session", "error", err)
+		return err
+	}
+	if contactID > 0 {
+		if err := a.rd.SRem(r.RequestCtx, portalUserSessionKeyPrefix+strconv.Itoa(contactID), sess.ID()).Err(); err != nil {
+			a.logger.Error("error removing portal session index entry", "contact_id", contactID, "error", err)
+			return err
+		}
+	}
+	return nil
+}
+
+// DestroyContactSessions revokes every portal session of a contact.
+func (a *Auth) DestroyContactSessions(ctx context.Context, contactID int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return DestroyContactSessions(ctx, a.rd, contactID)
+}
+
+// DestroyContactSessions revokes every portal session of a contact from Redis.
+func DestroyContactSessions(ctx context.Context, rd *redis.Client, contactID int) error {
+	indexKey := portalUserSessionKeyPrefix + strconv.Itoa(contactID)
+	ids, err := rd.SMembers(ctx, indexKey).Result()
+	if err != nil {
+		return fmt.Errorf("fetching contact portal sessions: %w", err)
+	}
+	keys := make([]string, 0, len(ids)+1)
+	keys = append(keys, indexKey)
+	for _, id := range ids {
+		keys = append(keys, portalSessionKeyPrefix+id)
+	}
+	if err := rd.Del(ctx, keys...).Err(); err != nil {
+		return fmt.Errorf("destroying contact portal sessions: %w", err)
 	}
 	return nil
 }

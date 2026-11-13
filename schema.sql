@@ -304,7 +304,9 @@ CREATE TABLE conversations (
 	next_sla_deadline_at TIMESTAMPTZ NULL,
 	snoozed_until TIMESTAMPTZ NULL,
 	last_continuity_email_sent_at TIMESTAMPTZ NULL,
-	last_inbound_at TIMESTAMPTZ NULL
+	last_inbound_at TIMESTAMPTZ NULL,
+	time_spent_seconds INT NOT NULL DEFAULT 0,
+	billable_time_seconds INT NOT NULL DEFAULT 0
 );
 CREATE INDEX index_conversations_on_assigned_user_id ON conversations (assigned_user_id);
 CREATE INDEX index_conversations_on_assigned_team_id ON conversations (assigned_team_id);
@@ -1093,6 +1095,37 @@ CREATE INDEX idx_widget_campaign_browser ON widget_campaign_deliveries(inbox_id,
 CREATE INDEX idx_widget_campaign_contact ON widget_campaign_deliveries(inbox_id, contact_id, created_at DESC) WHERE contact_id IS NOT NULL;
 CREATE INDEX idx_widget_campaign_stats ON widget_campaign_deliveries(inbox_id, campaign_id, created_at);
 
+CREATE TABLE portal_login_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    contact_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash BYTEA NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ NULL,
+    requested_ip TEXT NULL
+);
+CREATE INDEX index_portal_login_tokens_on_contact_id ON portal_login_tokens (contact_id);
+CREATE INDEX index_portal_login_tokens_on_expires_at ON portal_login_tokens (expires_at);
+
+CREATE TABLE conversation_time_entries (
+    id BIGSERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    started_at TIMESTAMPTZ NOT NULL,
+    ended_at TIMESTAMPTZ NULL,
+    duration_seconds INT NOT NULL DEFAULT 0,
+    note TEXT NULL,
+    billable BOOL NOT NULL DEFAULT TRUE,
+    CONSTRAINT constraint_time_entries_duration
+        CHECK (duration_seconds >= 0 AND duration_seconds <= 86400)
+);
+CREATE INDEX index_time_entries_on_conversation_id ON conversation_time_entries (conversation_id);
+CREATE INDEX index_time_entries_on_user_id ON conversation_time_entries (user_id);
+CREATE UNIQUE INDEX index_time_entries_one_running_per_user
+    ON conversation_time_entries (user_id) WHERE ended_at IS NULL;
+
 INSERT INTO ai_providers
 ("name", provider, type, config, is_default)
 VALUES
@@ -1169,7 +1202,7 @@ VALUES
 	(
 		'Admin',
 		'Role for users who have complete access to everything.',
-		'{webhooks:manage,context_links:manage,activity_logs:manage,custom_attributes:manage,contacts:read_all,contacts:read,contacts:write,contacts:block,contacts:delete,contacts:export,contact_notes:read,contact_notes:write,contact_notes:delete,conversations:write,ai:manage,help_center:manage,general_settings:manage,notification_settings:manage,oidc:manage,conversations:read_all,conversations:read_unassigned,conversations:read_assigned,conversations:read_team_inbox,conversations:read_team_all,conversations:read,conversations:update_user_assignee,conversations:update_team_assignee,conversations:update_priority,conversations:update_status,conversations:update_tags,messages:read,messages:write,messages:write_private,view:manage,shared_views:manage,status:manage,tags:manage,macros:manage,users:manage,teams:manage,automations:manage,inboxes:manage,roles:manage,reports:manage,templates:manage,business_hours:manage,sla:manage}'
+		'{webhooks:manage,context_links:manage,activity_logs:manage,custom_attributes:manage,contacts:read_all,contacts:read,contacts:write,contacts:block,contacts:delete,contacts:export,contact_notes:read,contact_notes:write,contact_notes:delete,conversations:write,ai:manage,help_center:manage,general_settings:manage,notification_settings:manage,oidc:manage,conversations:read_all,conversations:read_unassigned,conversations:read_assigned,conversations:read_team_inbox,conversations:read_team_all,conversations:read,conversations:update_user_assignee,conversations:update_team_assignee,conversations:update_priority,conversations:update_status,conversations:update_tags,messages:read,messages:write,messages:write_private,view:manage,shared_views:manage,status:manage,tags:manage,macros:manage,users:manage,teams:manage,automations:manage,inboxes:manage,roles:manage,reports:manage,templates:manage,business_hours:manage,sla:manage,time_tracking:manage}'
 	);
 
 

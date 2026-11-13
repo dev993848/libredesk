@@ -46,6 +46,7 @@ import (
 	"github.com/abhinavxd/libredesk/internal/inbox"
 	"github.com/abhinavxd/libredesk/internal/media"
 	"github.com/abhinavxd/libredesk/internal/oidc"
+	"github.com/abhinavxd/libredesk/internal/portal"
 	"github.com/abhinavxd/libredesk/internal/ratelimit"
 	"github.com/abhinavxd/libredesk/internal/role"
 	"github.com/abhinavxd/libredesk/internal/setting"
@@ -73,6 +74,7 @@ var (
 	appName     = "libredesk"
 	frontendDir = "frontend/dist/main"
 	widgetDir   = "frontend/dist/widget"
+	portalDir   = "frontend/dist/portal"
 
 	// Injected at build time.
 	buildString   string
@@ -98,6 +100,7 @@ const (
 
 // App is the global app context which is passed and injected in the http handlers.
 type App struct {
+	portal             *portal.Manager
 	proactive          *proactive.Manager
 	ctx                context.Context
 	fs                 stuffbin.FileSystem
@@ -274,6 +277,7 @@ func main() {
 		ai                          = initAI(ctx, db, i18n, ssrfControl, settings)
 		sla                         = initSLA(db, team, settings, businessHours, template, user, i18n, notifDispatcher)
 		conversation                = initConversations(i18n, sla, status, priority, wsHub, db, inbox, user, team, media, settings, csat, automation, template, webhook, notifDispatcher)
+		portalMgr                   = initPortal(db, conversation, i18n)
 		aiAgent                     = initAIAgent(db, i18n, ai, conversation, inbox, media, settings, user, notifier, rdb)
 		helpCenter                  = initHelpCenter(db, i18n, ai)
 		autoassigner                = initAutoAssigner(team, user, conversation)
@@ -325,6 +329,7 @@ func main() {
 		clientIPHeader:   ko.String("app.server.client_ip_header"),
 		lo:               lo,
 		fs:               fs,
+		portal:           portalMgr,
 		sla:              sla,
 		oidc:             oidc,
 		i18n:             i18n,

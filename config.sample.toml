@@ -185,10 +185,35 @@ evaluation_interval = "5m"
 # Per-IP rate limits (requests per minute) for unauthenticated endpoints.
 # Setting enabled = false disables that rule entirely.
 
+# Customer portal.
+[portal]
+# Enable the customer portal at /portal.
+enabled = true
+# Portal session lifetime.
+session_lifetime = "720h"
+# Magic-link validity.
+magic_link_ttl = "15m"
+# Inbox for new tickets created from the portal (0 = disabled).
+default_inbox_id = 0
+# Allow exchanging a signed JWT for a portal session.
+jwt_enabled = false
+# HMAC secret used to verify portal JWTs.
+jwt_secret = ""
+
 # Livechat widget APIs.
 [rate_limit.widget]
 enabled = true
 requests_per_minute = 100
+
+# Customer portal APIs.
+[rate_limit.portal]
+enabled = true
+requests_per_minute = 100
+
+# Portal login (magic link) endpoints.
+[rate_limit.portal_auth]
+enabled = true
+requests_per_minute = 5
 
 # Login, password reset and other auth endpoints.
 [rate_limit.auth]

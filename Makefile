@@ -31,7 +31,7 @@ install-deps: $(STUFFBIN)
 
 # Build the frontend for production (both apps).
 .PHONY: frontend-build
-frontend-build: frontend-build-main frontend-build-widget
+frontend-build: frontend-build-main frontend-build-widget frontend-build-portal
 
 .PHONY: minify-widget-js
 minify-widget-js: install-deps
@@ -49,6 +49,12 @@ frontend-build-main: install-deps
 frontend-build-widget: install-deps
 	@echo "→ Building widget frontend app for production..."
 	@export VITE_APP_VERSION="${VERSION}" && cd ${FRONTEND_DIR} && pnpm build:widget
+
+# Build only the customer portal frontend app.
+.PHONY: frontend-build-portal
+frontend-build-portal: install-deps
+	@echo "→ Building customer portal frontend app for production..."
+	@export VITE_APP_VERSION="${VERSION}" && cd ${FRONTEND_DIR} && pnpm build:portal
 
 # Run the Go backend server in development mode.
 .PHONY: run-backend

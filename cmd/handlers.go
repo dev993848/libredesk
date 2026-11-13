@@ -33,6 +33,15 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/lang", handleGetAvailableLanguages)
 	g.GET("/api/v1/lang/{lang}", handleGetI18nLang)
 
+	// Customer portal API.
+	g.POST("/api/v1/portal/auth/magic-link", rateLimit(handlePortalMagicLink, "portal_auth"))
+	g.GET("/api/v1/portal/auth/verify", rateLimit(handlePortalVerify, "portal_auth"))
+	g.POST("/api/v1/portal/auth/logout", rateLimit(portalAuth(handlePortalLogout), "portal"))
+	g.GET("/api/v1/portal/me", rateLimit(portalAuth(handlePortalMe), "portal"))
+	g.GET("/api/v1/portal/conversations", rateLimit(portalAuth(handlePortalListConversations), "portal"))
+	g.GET("/api/v1/portal/conversations/{uuid}", rateLimit(portalAuth(handlePortalGetConversation), "portal"))
+	g.POST("/api/v1/portal/conversations/{uuid}/seen", rateLimit(portalAuth(handlePortalMarkSeen), "portal"))
+
 	// Public config for app initialization.
 	g.GET("/api/v1/config", handleGetConfig)
 
@@ -431,6 +440,11 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/reset-password", notAuthPage(serveIndexPage))
 	g.GET("/set-password", notAuthPage(serveIndexPage))
 
+	// Customer portal.
+	g.GET("/portal", servePortalIndexPage)
+	g.GET("/portal/assets/{all:*}", servePortalStaticFiles)
+	g.GET("/portal/{all:*}", servePortalIndexPage)
+
 	// Assets and static files.
 	// FIXME: Reduce the number of routes.
 	g.GET("/widget.js", serveWidgetJS)
@@ -583,6 +597,58 @@ func serveMainFrontendFile(r *fastglue.Request, name, contentType, cacheControl 
 }
 
 // serveWidgetStaticFiles serves widget static assets from the embedded filesystem.
+// servePortalIndexPage serves the customer portal SPA.
+func servePortalIndexPage(r *fastglue.Request) error {
+	app := r.Context.(*App)
+
+	if !app.portal.Enabled() {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("globals.messages.pageNotFound"), nil, envelope.NotFoundError)
+	}
+
+	r.RequestCtx.Response.Header.Add("Cache-Control", "no-store, no-cache, must-revalidate, post-check=0, pre-check=0")
+	r.RequestCtx.Response.Header.Add("Pragma", "no-cache")
+	r.RequestCtx.Response.Header.Add("Expires", "-1")
+	r.RequestCtx.Response.Header.Set("Content-Security-Policy", "frame-ancestors 'self'")
+	r.RequestCtx.Response.Header.Set("X-Frame-Options", "SAMEORIGIN")
+
+	file, err := app.fs.Get(path.Join(portalDir, "index.html"))
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+	}
+	r.RequestCtx.Response.Header.Set("Content-Type", "text/html")
+	r.RequestCtx.Response.SetBodyRaw(file.ReadBytes())
+
+	// The portal SPA needs the CSRF cookie before its first POST.
+	if err := app.auth.SetCSRFCookie(r); err != nil {
+		app.lo.Error("error setting portal csrf cookie", "error", err)
+	}
+	return nil
+}
+
+// servePortalStaticFiles serves the portal's built assets.
+func servePortalStaticFiles(r *fastglue.Request) error {
+	app := r.Context.(*App)
+
+	filePath := string(r.RequestCtx.Path())
+	finalPath := filepath.Join(portalDir, strings.TrimPrefix(filePath, "/portal"))
+
+	file, err := app.fs.Get(finalPath)
+	if err != nil {
+		return r.SendErrorEnvelope(http.StatusNotFound, app.i18n.T("validation.notFoundFile"), nil, envelope.NotFoundError)
+	}
+
+	body := file.ReadBytes()
+	ext := filepath.Ext(filePath)
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = http.DetectContentType(body)
+	}
+	r.RequestCtx.Response.Header.Set("Content-Type", contentType)
+	r.RequestCtx.Response.Header.Set("Cache-Control", "public, max-age=86400")
+	r.RequestCtx.Response.SetBodyRaw(body)
+	return nil
+}
+
 func serveWidgetStaticFiles(r *fastglue.Request) error {
 	app := r.Context.(*App)
 

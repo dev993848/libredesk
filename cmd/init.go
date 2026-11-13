@@ -44,6 +44,7 @@ import (
 	notificationchannels "github.com/abhinavxd/libredesk/internal/notification/channels"
 	emailnotifier "github.com/abhinavxd/libredesk/internal/notification/providers/email"
 	"github.com/abhinavxd/libredesk/internal/oidc"
+	"github.com/abhinavxd/libredesk/internal/portal"
 	"github.com/abhinavxd/libredesk/internal/ratelimit"
 	"github.com/abhinavxd/libredesk/internal/report"
 	"github.com/abhinavxd/libredesk/internal/role"
@@ -201,7 +202,7 @@ func initFS(staticDir string) stuffbin.FileSystem {
 			// Only include frontend dirs if they exist (frontend build is optional in dev).
 			colorlog.Red("binary unstuff failed, using local filesystem for static files")
 			files := []string{"i18n", "static"}
-			for _, d := range []string{"frontend/dist/main", "frontend/dist/widget"} {
+			for _, d := range []string{"frontend/dist/main", "frontend/dist/widget", "frontend/dist/portal"} {
 				if _, err := os.Stat(d); err == nil {
 					files = append(files, d)
 				}
@@ -936,6 +937,38 @@ func initSSRFControl() ssrf.Control {
 }
 
 // initAuth initializes the authentication manager.
+// initPortal initializes the customer portal manager.
+func initPortal(db *sqlx.DB, conv *conversation.Manager, i18n *i18n.I18n) *portal.Manager {
+	enabled := true
+	if ko.Exists("portal.enabled") {
+		enabled = ko.Bool("portal.enabled")
+	}
+
+	ttl := ko.Duration("portal.magic_link_ttl")
+	if ttl <= 0 {
+		ttl = 15 * time.Minute
+	}
+
+	p, err := portal.New(portal.Opts{
+		DB:           db,
+		Lo:           initLogger("portal"),
+		I18n:         i18n,
+		Conversation: conv,
+		Config: portal.Config{
+			Enabled:         enabled,
+			MagicLinkTTL:    ttl,
+			DefaultInboxID:  ko.Int("portal.default_inbox_id"),
+			JWTEnabled:      ko.Bool("portal.jwt_enabled"),
+			JWTSecret:       ko.String("portal.jwt_secret"),
+			SessionLifetime: ko.Duration("portal.session_lifetime"),
+		},
+	})
+	if err != nil {
+		log.Fatalf("error initializing portal manager: %v", err)
+	}
+	return p
+}
+
 func initAuth(o *oidc.Manager, rd *redis.Client, i18n *i18n.I18n, dialControl ssrf.Control) *auth_.Auth {
 	lo := initLogger("auth")
 
@@ -946,7 +979,13 @@ func initAuth(o *oidc.Manager, rd *redis.Client, i18n *i18n.I18n, dialControl ss
 
 	secure := !ko.Bool("app.server.disable_secure_cookies")
 	sessionLifetime := ko.Duration("app.server.session_lifetime")
-	auth, err := auth_.New(auth_.Config{Providers: providers, SecureCookies: secure, SessionLifetime: sessionLifetime}, i18n, rd, lo, dialControl)
+	portalLifetime := ko.Duration("portal.session_lifetime")
+	auth, err := auth_.New(auth_.Config{
+		Providers:             providers,
+		SecureCookies:         secure,
+		SessionLifetime:       sessionLifetime,
+		PortalSessionLifetime: portalLifetime,
+	}, i18n, rd, lo, dialControl)
 	if err != nil {
 		log.Fatalf("error initializing auth: %v", err)
 	}
@@ -1391,6 +1430,8 @@ func initRateLimit(redisClient *redis.Client, clientIPHeader string) *ratelimit.
 		{"auth", 30},
 		{"public", 100},
 		{"media", 300},
+		{"portal", 100},
+		{"portal_auth", 5},
 	}
 
 	for _, d := range defaults {

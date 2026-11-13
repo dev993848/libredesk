@@ -11,23 +11,26 @@ const require = createRequire(import.meta.url)
 
 export default defineConfig(({ mode, command }) => {
   const isWidget = mode === 'widget'
-  const appPath = isWidget ? 'apps/widget' : 'apps/main'
+  const isPortal = mode === 'portal'
+  const appPath = isPortal ? 'apps/portal' : (isWidget ? 'apps/widget' : 'apps/main')
 
   const apiTarget = process.env.LD_API_TARGET || 'http://127.0.0.1:9000'
   const wsTarget = process.env.LD_WS_TARGET || 'ws://127.0.0.1:9000'
   const mainPort = process.env.LD_DEV_PORT ? Number(process.env.LD_DEV_PORT) : 8000
   const widgetPort = process.env.LD_WIDGET_DEV_PORT ? Number(process.env.LD_WIDGET_DEV_PORT) : 8001
+  const portalPort = process.env.LD_PORTAL_DEV_PORT ? Number(process.env.LD_PORTAL_DEV_PORT) : 8002
 
   // Load shared tailwind config but scope content to current app only,
   // so each app's CSS bundle doesn't include unused classes from the other.
   const tailwindConfig = require('./tailwind.config.cjs')
+  const appName = isPortal ? 'portal' : (isWidget ? 'widget' : 'main')
   const scopedContent = [
-    `./apps/${isWidget ? 'widget' : 'main'}/src/**/*.{js,ts,vue}`,
+    `./apps/${appName}/src/**/*.{js,ts,vue}`,
     './shared-ui/**/*.{js,ts,vue}',
   ]
 
   return {
-    base: isWidget && command === 'build' ? '/widget/' : '/',
+    base: isPortal && command === 'build' ? '/portal/' : (isWidget && command === 'build' ? '/widget/' : '/'),
     css: {
       preprocessorOptions: {
         scss: {
@@ -49,7 +52,7 @@ export default defineConfig(({ mode, command }) => {
       fs: {
         allow: [path.resolve(__dirname), path.resolve(__dirname, '../static/public/static')],
       },
-      port: isWidget ? widgetPort : mainPort,
+      port: isPortal ? portalPort : (isWidget ? widgetPort : mainPort),
       proxy: {
         '/api': {
           target: apiTarget,
@@ -84,9 +87,11 @@ export default defineConfig(({ mode, command }) => {
       },
     },
     build: {
-      outDir: isWidget
-        ? path.resolve(__dirname, 'dist/widget')
-        : path.resolve(__dirname, 'dist/main'),
+      outDir: isPortal
+        ? path.resolve(__dirname, 'dist/portal')
+        : (isWidget
+          ? path.resolve(__dirname, 'dist/widget')
+          : path.resolve(__dirname, 'dist/main')),
       emptyOutDir: true,
       chunkSizeWarningLimit: 600,
       rollupOptions: {
@@ -99,7 +104,7 @@ export default defineConfig(({ mode, command }) => {
             'forms': ['vee-validate', '@vee-validate/zod', 'zod'],
             'misc': ['axios', 'date-fns', 'mitt', 'qs', 'vue-i18n'],
             // Main-app-only chunks - widget doesn't use these libraries.
-            ...(!isWidget && {
+            ...(!isWidget && !isPortal && {
               'charts': ['@unovis/ts', '@unovis/vue'],
               'editor': [
                 '@tiptap/vue-3',
@@ -129,6 +134,7 @@ export default defineConfig(({ mode, command }) => {
         '@': path.resolve(__dirname, `${appPath}/src`),
         '@main': path.resolve(__dirname, 'apps/main/src'),
         '@widget': path.resolve(__dirname, 'apps/widget/src'),
+        '@portal': path.resolve(__dirname, 'apps/portal/src'),
         '@shared-ui': path.resolve(__dirname, 'shared-ui'),
         '@countries': path.resolve(__dirname, '../internal/countries/countries.json'),
         '@public-static': path.resolve(__dirname, '../static/public/static'),

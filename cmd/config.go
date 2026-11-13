@@ -33,6 +33,7 @@ func handleGetConfig(r *fastglue.Request) error {
 		"app.favicon_url": settings["app.favicon_url"],
 		"app.logo_url":    settings["app.logo_url"],
 		"app.site_name":   settings["app.site_name"],
+		"portal.enabled":  app.portal.Enabled(),
 	}
 
 	// Get all OIDC providers
