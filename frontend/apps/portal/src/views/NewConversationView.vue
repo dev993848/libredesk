@@ -63,11 +63,12 @@ async function submit() {
         </p>
 
         <label for="portal-subject" class="mb-2 block text-sm font-medium">{{ t('portal.new.subject') }}</label>
-        <Input id="portal-subject" v-model="subject" required maxlength="255" />
+        <Input id="portal-subject" data-testid="portal-subject" v-model="subject" required maxlength="255" />
 
         <label for="portal-message" class="mb-2 mt-4 block text-sm font-medium">{{ t('portal.new.message') }}</label>
         <textarea
           id="portal-message"
+          data-testid="portal-message"
           v-model="message"
           required
           rows="8"
@@ -75,7 +76,7 @@ async function submit() {
         ></textarea>
 
         <div class="mt-4 flex justify-end">
-          <Button type="submit" :disabled="submitting || !subject.trim() || !message.trim()">
+          <Button type="submit" data-testid="portal-new-submit" :disabled="submitting || !subject.trim() || !message.trim()">
             {{ submitting ? t('portal.loading') : t('portal.new.submit') }}
           </Button>
         </div>

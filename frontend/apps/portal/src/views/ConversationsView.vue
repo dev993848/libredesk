@@ -119,11 +119,15 @@ onMounted(load)
         <Spinner size="md" :absolute="false" :text="t('portal.loading')" />
       </div>
 
-      <p v-else-if="error" class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      <p v-else-if="error" data-testid="portal-error" class="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
         {{ error }}
       </p>
 
-      <div v-else-if="!items.length" class="rounded-lg border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground">
+      <div
+        v-else-if="!items.length"
+        data-testid="portal-empty"
+        class="rounded-lg border border-border bg-card px-4 py-12 text-center text-sm text-muted-foreground"
+      >
         {{ t('portal.conversations.empty') }}
       </div>
 
@@ -132,6 +136,7 @@ onMounted(load)
           v-for="conversation in items"
           :key="conversation.uuid"
           :to="{ name: 'conversation', params: { uuid: conversation.uuid } }"
+          data-testid="portal-conversation"
           class="block border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-accent/50"
         >
           <div class="flex items-start justify-between gap-3">
@@ -153,7 +158,11 @@ onMounted(load)
               <span class="text-xs text-muted-foreground">
                 {{ formatDate(conversation.last_message_at || conversation.created_at, locale) }}
               </span>
-              <span v-if="conversation.time_spent_seconds > 0" class="text-xs text-muted-foreground">
+              <span
+                v-if="conversation.time_spent_seconds > 0"
+                data-testid="portal-conversation-time"
+                class="text-xs text-muted-foreground"
+              >
                 {{ t('portal.time.spent', { duration: formatDuration(conversation.time_spent_seconds, t) }) }}
               </span>
               <Badge v-if="conversation.unread_count > 0" variant="success">

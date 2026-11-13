@@ -65,7 +65,7 @@ async function submit() {
         </Button>
       </div>
 
-      <form v-else class="rounded-lg border border-border bg-card p-6 shadow-sm" @submit.prevent="submit">
+      <form v-else data-testid="portal-login-form" class="rounded-lg border border-border bg-card p-6 shadow-sm" @submit.prevent="submit">
         <p v-if="routeError" class="mb-4 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {{ routeError }}
         </p>
@@ -85,7 +85,7 @@ async function submit() {
           placeholder="you@example.com"
         />
 
-        <Button type="submit" class="mt-4 w-full" :disabled="submitting || !email.trim()">
+        <Button type="submit" data-testid="portal-login-submit" class="mt-4 w-full" :disabled="submitting || !email.trim()">
           <Spinner v-if="submitting" size="sm" :absolute="false" :text="''" />
           <span v-else>{{ t('portal.login.submit') }}</span>
         </Button>

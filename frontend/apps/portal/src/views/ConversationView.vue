@@ -139,7 +139,11 @@ onMounted(load)
           <p class="mt-1 text-sm text-muted-foreground">
             {{ conversation.inbox_name }} · {{ formatDate(conversation.created_at, locale) }}
           </p>
-          <p v-if="conversation.time_spent_seconds > 0" class="mt-1 text-sm text-muted-foreground">
+          <p
+            v-if="conversation.time_spent_seconds > 0"
+            data-testid="portal-conversation-time"
+            class="mt-1 text-sm text-muted-foreground"
+          >
             {{ t('portal.time.spent', { duration: formatDuration(conversation.time_spent_seconds, t) }) }}
           </p>
         </div>
@@ -152,6 +156,7 @@ onMounted(load)
           <div
             v-for="message in conversation.messages"
             :key="message.uuid"
+            data-testid="portal-message"
             class="flex"
             :class="isContact(message) ? 'justify-end' : 'justify-start'"
           >
@@ -193,6 +198,7 @@ onMounted(load)
           </p>
           <textarea
             v-model="replyText"
+            data-testid="portal-reply"
             rows="4"
             :placeholder="t('portal.reply.placeholder')"
             class="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -202,7 +208,7 @@ onMounted(load)
               {{ uploading ? t('portal.loading') : t('portal.attach') }}
               <input type="file" multiple class="hidden" :disabled="uploading" @change="onFiles" />
             </label>
-            <Button type="submit" :disabled="sending || !replyText.trim()">
+            <Button type="submit" data-testid="portal-reply-submit" :disabled="sending || !replyText.trim()">
               {{ sending ? t('portal.loading') : t('portal.reply.submit') }}
             </Button>
           </div>
