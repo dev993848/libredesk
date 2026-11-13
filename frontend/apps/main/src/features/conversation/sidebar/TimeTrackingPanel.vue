@@ -35,7 +35,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const resp = await api.get(`/api/v1/conversations/${uuid.value}/time-entries`)
+    const resp = await api.getTimeEntries(uuid.value)
     const data = resp.data.data
     entries.value = data.entries || []
     totalSeconds.value = data.total_seconds || 0
@@ -51,7 +51,7 @@ async function load() {
 
 async function startTimer() {
   try {
-    await api.post(`/api/v1/conversations/${uuid.value}/timer/start`)
+    await api.startTimer(uuid.value)
     await load()
   } catch (err) {
     handleHTTPError(err, t)
@@ -60,7 +60,7 @@ async function startTimer() {
 
 async function stopTimer() {
   try {
-    await api.post(`/api/v1/conversations/${uuid.value}/timer/stop`)
+    await api.stopTimer(uuid.value)
     await load()
   } catch (err) {
     handleHTTPError(err, t)
@@ -72,7 +72,7 @@ async function addManual() {
   if (!mins || mins <= 0) return
   saving.value = true
   try {
-    await api.post(`/api/v1/conversations/${uuid.value}/time-entries`, {
+    await api.addTimeEntry(uuid.value, {
       duration_seconds: Math.round(mins * 60),
       note: note.value.trim(),
       billable: billable.value,
@@ -103,7 +103,7 @@ async function saveEdit(entry) {
   if (!mins || mins <= 0) return
   saving.value = true
   try {
-    await api.put(`/api/v1/time-entries/${entry.id}`, {
+    await api.updateTimeEntry(entry.id, {
       duration_seconds: Math.round(mins * 60),
       note: editNote.value.trim(),
       billable: editBillable.value,
@@ -120,7 +120,7 @@ async function saveEdit(entry) {
 async function removeEntry(entry) {
   if (!window.confirm(t('timeTracking.confirmDelete'))) return
   try {
-    await api.delete(`/api/v1/time-entries/${entry.id}`)
+    await api.deleteTimeEntry(entry.id)
     await load()
   } catch (err) {
     handleHTTPError(err, t)
@@ -151,6 +151,7 @@ watch(uuid, (value, previous) => {
         v-if="activeHere"
         variant="destructive"
         size="sm"
+        data-testid="time-stop"
         @click="stopTimer"
       >
         {{ t('timeTracking.stop') }}
@@ -158,6 +159,7 @@ watch(uuid, (value, previous) => {
       <Button
         v-else
         size="sm"
+        data-testid="time-start"
         :disabled="hasActive && !activeHere"
         :title="hasActive && !activeHere ? t('timeTracking.otherTimer') : ''"
         @click="startTimer"
@@ -214,10 +216,16 @@ watch(uuid, (value, previous) => {
             </template>
           </div>
           <div v-if="editingId !== entry.id" class="flex gap-1">
-            <Button v-if="entry.ended_at" variant="ghost" size="xs" @click="startEdit(entry)">
+            <Button
+              v-if="entry.ended_at"
+              variant="ghost"
+              size="xs"
+              data-testid="time-edit"
+              @click="startEdit(entry)"
+            >
               {{ t('timeTracking.edit') }}
             </Button>
-            <Button variant="ghost" size="xs" @click="removeEntry(entry)">
+            <Button variant="ghost" size="xs" data-testid="time-delete" @click="removeEntry(entry)">
               {{ t('globals.messages.delete') }}
             </Button>
           </div>
@@ -229,14 +237,22 @@ watch(uuid, (value, previous) => {
     <div class="space-y-2 border-t border-border pt-3">
       <p class="text-sm font-medium">{{ t('timeTracking.addManual') }}</p>
       <div class="flex gap-2">
-        <Input v-model="minutes" type="number" min="1" step="1" :placeholder="t('timeTracking.minutes')" class="w-28" />
-        <Input v-model="note" :placeholder="t('timeTracking.note')" class="flex-1" />
+        <Input
+          v-model="minutes"
+          type="number"
+          min="1"
+          step="1"
+          data-testid="time-minutes"
+          :placeholder="t('timeTracking.minutes')"
+          class="w-28"
+        />
+        <Input v-model="note" data-testid="time-note" :placeholder="t('timeTracking.note')" class="flex-1" />
       </div>
       <label class="flex items-center gap-2 text-xs text-muted-foreground">
-        <input v-model="billable" type="checkbox" class="size-3.5" />
+        <input v-model="billable" type="checkbox" data-testid="time-billable" class="size-3.5" />
         {{ t('timeTracking.billableFlag') }}
       </label>
-      <Button size="sm" :disabled="saving || !minutes" @click="addManual">
+      <Button size="sm" data-testid="time-add" :disabled="saving || !minutes" @click="addManual">
         {{ t('globals.messages.add') }}
       </Button>
     </div>

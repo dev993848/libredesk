@@ -355,6 +355,13 @@ const sendMessage = (uuid, data) =>
 const getConversation = (uuid) => http.get(`/api/v1/conversations/${uuid}`, { abortOnRoute: true })
 const getConversationTranscript = (uuid) =>
   http.get(`/api/v1/conversations/${uuid}/transcript`, { responseType: 'blob' })
+
+const getTimeEntries = (uuid) => http.get(`/api/v1/conversations/${uuid}/time-entries`)
+const startTimer = (uuid) => http.post(`/api/v1/conversations/${uuid}/timer/start`)
+const stopTimer = (uuid) => http.post(`/api/v1/conversations/${uuid}/timer/stop`)
+const addTimeEntry = (uuid, data) => http.post(`/api/v1/conversations/${uuid}/time-entries`, data)
+const updateTimeEntry = (id, data) => http.put(`/api/v1/time-entries/${id}`, data)
+const deleteTimeEntry = (id) => http.delete(`/api/v1/time-entries/${id}`)
 const getTranscriptTemplate = () =>
   http.get('/static/public/static/transcript.html', {
     responseType: 'text',
@@ -728,6 +735,12 @@ export default {
   getConversationMessages,
   getConversationTranscript,
   getTranscriptTemplate,
+  getTimeEntries,
+  startTimer,
+  stopTimer,
+  addTimeEntry,
+  updateTimeEntry,
+  deleteTimeEntry,
   getCurrentUser,
   getCurrentUserTeams,
   getMacrosCompact,
