@@ -94,6 +94,10 @@ describe('Portal UI: conversations', () => {
       { statusCode: 200, body: { status: 'success', data: { uuid: 'm3' } } }
     ).as('reply')
     cy.intercept(
+      { method: 'POST', pathname: '/api/v1/portal/conversations/c1/attachments' },
+      { statusCode: 200, body: { status: 'success', data: { uuid: 'm4' } } }
+    ).as('upload')
+    cy.intercept(
       { method: 'POST', pathname: '/api/v1/portal/conversations' },
       { statusCode: 200, body: { status: 'success', data: { uuid: 'new1' } } }
     ).as('create')
@@ -177,6 +181,22 @@ describe('Portal UI: conversations', () => {
       expect(request.body).to.deep.equal({ message: 'I checked the date, it is valid' })
     })
     cy.get('[data-testid="portal-reply"]').should('have.value', '')
+  })
+
+  it('uploads an attachment from the ticket page', () => {
+    cy.visit('/portal/c/c1')
+    cy.get('input[type="file"]').selectFile(
+      {
+        contents: Cypress.Buffer.from('attachment body'),
+        fileName: 'note.txt',
+        mimeType: 'text/plain'
+      },
+      { force: true }
+    )
+
+    cy.wait('@upload').then(({ request }) => {
+      expect(request.headers['content-type']).to.contain('multipart/form-data')
+    })
   })
 
   it('creates a new ticket', () => {
