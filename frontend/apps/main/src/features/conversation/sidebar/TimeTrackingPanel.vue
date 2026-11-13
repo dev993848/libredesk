@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Button } from '@shared-ui/components/ui/button'
 import { Input } from '@shared-ui/components/ui/input'
@@ -128,6 +128,13 @@ async function removeEntry(entry) {
 }
 
 onMounted(load)
+
+watch(uuid, (value, previous) => {
+  if (value && value !== previous) {
+    editingId.value = null
+    load()
+  }
+})
 </script>
 
 <template>
