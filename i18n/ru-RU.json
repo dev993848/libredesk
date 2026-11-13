@@ -1711,6 +1711,7 @@
   "portal.time.minute": "мин",
   "portal.time.spent": "Затрачено: {duration}",
   "portal.title": "Личный кабинет",
+  "portal.transcript": "Скачать",
   "portal.verify.button": "Войти",
   "portal.verify.intro": "Нажмите кнопку ниже, чтобы завершить вход. Ссылка одноразовая.",
   "portal.verify.title": "Вход в личный кабинет",

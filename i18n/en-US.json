@@ -1711,6 +1711,7 @@
   "portal.time.minute": "min",
   "portal.time.spent": "Time spent: {duration}",
   "portal.title": "Customer portal",
+  "portal.transcript": "Download",
   "portal.verify.button": "Sign in",
   "portal.verify.intro": "Click the button below to finish signing in. The link can be used only once.",
   "portal.verify.title": "Sign in to the customer portal",

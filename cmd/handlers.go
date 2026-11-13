@@ -45,6 +45,7 @@ func initHandlers(g *fastglue.Fastglue, hub *ws.Hub) {
 	g.GET("/api/v1/portal/conversations/{uuid}", rateLimit(portalAuth(handlePortalGetConversation), "portal"))
 	g.POST("/api/v1/portal/conversations/{uuid}/messages", rateLimit(portalAuth(handlePortalReply), "portal"))
 	g.POST("/api/v1/portal/conversations/{uuid}/attachments", rateLimit(portalAuth(handlePortalUploadAttachment), "portal"))
+	g.GET("/api/v1/portal/conversations/{uuid}/transcript", rateLimit(portalAuth(handlePortalTranscript), "portal"))
 	g.POST("/api/v1/portal/conversations/{uuid}/seen", rateLimit(portalAuth(handlePortalMarkSeen), "portal"))
 
 	// Conversation time tracking.

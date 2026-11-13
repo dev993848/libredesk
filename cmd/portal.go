@@ -8,9 +8,11 @@ import (
 	"net/mail"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/abhinavxd/libredesk/internal/attachment"
 	cmodels "github.com/abhinavxd/libredesk/internal/conversation/models"
@@ -452,6 +454,66 @@ func handlePortalReply(r *fastglue.Request) error {
 		return sendErrorEnvelope(r, err)
 	}
 	return r.SendEnvelope(map[string]any{"uuid": messageUUID})
+}
+
+// handlePortalTranscript downloads a plain-text transcript of one of the contact's tickets.
+func handlePortalTranscript(r *fastglue.Request) error {
+	app := r.Context.(*App)
+	contact, err := getPortalContact(r)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	uuid := r.RequestCtx.UserValue("uuid").(string)
+	conv, err := app.portal.GetConversation(contact.ID, uuid)
+	if err != nil {
+		return sendErrorEnvelope(r, err)
+	}
+
+	body := renderPortalTranscript(conv)
+	filename := "ticket-" + stringutil.SanitizeFilename(conv.ReferenceNumber) + ".txt"
+	r.RequestCtx.Response.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	r.RequestCtx.Response.Header.Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	r.RequestCtx.Response.Header.Set("Cache-Control", "no-store")
+	r.RequestCtx.Response.SetBodyString(body)
+	return nil
+}
+
+var transcriptTagPattern = regexp.MustCompile(`<[^>]*>`)
+
+// renderPortalTranscript formats a conversation and its public messages as plain text.
+func renderPortalTranscript(conv pmodels.Conversation) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Subject: %s\n", conv.Subject)
+	fmt.Fprintf(&b, "Reference: %s\n", conv.ReferenceNumber)
+	fmt.Fprintf(&b, "Status: %s\n", conv.Status.Name)
+	fmt.Fprintf(&b, "Inbox: %s\n", conv.InboxName)
+	fmt.Fprintf(&b, "Created: %s\n", conv.CreatedAt.Format(time.RFC3339))
+	fmt.Fprintf(&b, "Total time spent: %s\n", (time.Duration(conv.TimeSpentSeconds) * time.Second).String())
+	b.WriteString("\n")
+
+	for _, msg := range conv.Messages {
+		author := msg.AuthorName
+		if msg.SenderType == "contact" {
+			author = "Customer"
+		}
+		fmt.Fprintf(&b, "[%s] %s\n", msg.CreatedAt.Format("2006-01-02 15:04"), author)
+		b.WriteString(plainTranscriptText(msg.Content, msg.ContentType))
+		b.WriteString("\n")
+		for _, a := range msg.Attachments {
+			fmt.Fprintf(&b, "Attachment: %s (%d bytes) %s\n", a.Name, a.Size, a.URL)
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+func plainTranscriptText(content, contentType string) string {
+	if contentType != "html" {
+		return content
+	}
+	text := transcriptTagPattern.ReplaceAllString(content, " ")
+	return strings.TrimSpace(html.UnescapeString(text))
 }
 
 // handlePortalUploadAttachment adds a file as a message to one of the contact's conversations.

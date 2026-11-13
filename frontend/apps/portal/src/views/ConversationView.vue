@@ -65,6 +65,10 @@ async function load() {
   }
 }
 
+function downloadTranscript() {
+  window.open(`/api/v1/portal/conversations/${route.params.uuid}/transcript`, '_blank', 'noopener')
+}
+
 async function sendReply() {
   const text = replyText.value.trim()
   if (!text || sending.value) return
@@ -112,9 +116,19 @@ onMounted(load)
           </RouterLink>
           <p class="mt-1 truncate text-sm font-medium">{{ appConfig.siteName }}</p>
         </div>
-        <Button variant="ghost" size="sm" @click="$router.push({ name: 'conversations' })">
-          {{ t('portal.conversations.title') }}
-        </Button>
+        <div class="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="portal-transcript"
+            @click="downloadTranscript"
+          >
+            {{ t('portal.transcript') }}
+          </Button>
+          <Button variant="ghost" size="sm" @click="$router.push({ name: 'conversations' })">
+            {{ t('portal.conversations.title') }}
+          </Button>
+        </div>
       </div>
     </header>
 

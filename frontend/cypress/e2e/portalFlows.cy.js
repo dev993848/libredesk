@@ -206,6 +206,20 @@ describe('Portal UI: conversations', () => {
     cy.contains('Ivan Petrov').should('be.visible')
   })
 
+  it('downloads the ticket transcript', () => {
+    cy.visit('/portal/c/c1')
+    cy.window().then((win) => {
+      cy.stub(win, 'open').as('open')
+    })
+    cy.get('[data-testid="portal-transcript"]').click()
+    cy.get('@open').should(
+      'have.been.calledWith',
+      '/api/v1/portal/conversations/c1/transcript',
+      '_blank',
+      'noopener'
+    )
+  })
+
   it('creates a new ticket', () => {
     cy.visit('/portal/new')
     cy.get('[data-testid="portal-subject"]').type('New ticket')
