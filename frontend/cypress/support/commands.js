@@ -35,7 +35,7 @@ Cypress.Commands.add('login', () => {
       cy.visit('/')
       cy.get('#email').clear().type(email)
       cy.get('#password').clear().type(password, { log: false })
-      cy.contains('button', 'Sign in').click()
+      cy.get('button[type="submit"]').click()
       cy.url().should('include', '/inboxes')
     },
     {
