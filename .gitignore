@@ -11,3 +11,5 @@ dist/
 static/widget.min.js
 
 .playwright-mcp/
+
+stuffbin-linux
