@@ -270,7 +270,7 @@
         <div class="w-full box p-5">
           <p class="ui-heading mb-4">{{ $t('report.time.cardTitle') }}</p>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="metric-item justify-center p-4">
               <span class="metric-value">{{ formatDuration(timeData.total_seconds || 0, false) }}</span>
               <span class="metric-label mt-2">{{ $t('report.time.total') }}</span>
@@ -290,6 +290,21 @@
                 <span class="text-sm font-semibold">{{ formatDuration(agent.seconds, false) }}</span>
               </div>
               <p v-if="!timeData.agents?.length" class="text-sm text-muted-foreground">
+                {{ $t('report.time.noEntries') }}
+              </p>
+            </div>
+
+            <div class="space-y-3">
+              <p class="ui-subheading mb-3 text-left">{{ $t('report.time.topTeams') }}</p>
+              <div
+                v-for="team in (timeData.teams || []).slice(0, 5)"
+                :key="team.name"
+                class="flex justify-between items-center py-1"
+              >
+                <span class="text-sm">{{ team.name }}</span>
+                <span class="text-sm font-semibold">{{ formatDuration(team.seconds, false) }}</span>
+              </div>
+              <p v-if="!timeData.teams?.length" class="text-sm text-muted-foreground">
                 {{ $t('report.time.noEntries') }}
               </p>
             </div>
@@ -385,7 +400,8 @@ const tagDistributionData = ref({
 const timeData = ref({
   total_seconds: 0,
   billable_seconds: 0,
-  agents: []
+  agents: [],
+  teams: []
 })
 
 const sections = {

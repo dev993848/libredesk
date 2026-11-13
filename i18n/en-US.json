@@ -1752,6 +1752,7 @@
   "report.time.cardTitle": "Time spent",
   "report.time.noEntries": "No time logged in this period.",
   "report.time.topAgents": "Top agents by time",
+  "report.time.topTeams": "Top teams by time",
   "report.time.total": "Total logged time",
   "role.deletionConfirmation": "This action cannot be undone. This will permanently delete this role.",
   "role.edit": "Edit role",

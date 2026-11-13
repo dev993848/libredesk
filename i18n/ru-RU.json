@@ -1752,6 +1752,7 @@
   "report.time.cardTitle": "Затраченное время",
   "report.time.noEntries": "За этот период время не учитывалось.",
   "report.time.topAgents": "Агенты по затраченному времени",
+  "report.time.topTeams": "Команды по затраченному времени",
   "report.time.total": "Всего часов",
   "role.deletionConfirmation": "Это действие нельзя отменить. Роль будет удалена безвозвратно.",
   "role.edit": "Изменить роль",

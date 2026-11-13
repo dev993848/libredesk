@@ -367,7 +367,8 @@ WITH entries AS (
     SELECT
         e.duration_seconds,
         e.billable,
-        e.user_id
+        e.user_id,
+        e.conversation_id
     FROM
         conversation_time_entries e
     WHERE
@@ -395,6 +396,21 @@ SELECT
                 ORDER BY seconds DESC
                 LIMIT 10
             ) a
+        ), '[]'::json),
+        'teams',
+        COALESCE((
+            SELECT json_agg(row_to_json(t))
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(tm.name, ''), '—') AS name,
+                    SUM(e.duration_seconds)::int AS seconds
+                FROM entries e
+                JOIN conversations c ON c.id = e.conversation_id
+                LEFT JOIN teams tm ON tm.id = c.assigned_team_id
+                GROUP BY 1
+                ORDER BY seconds DESC
+                LIMIT 10
+            ) t
         ), '[]'::json)
     )
 

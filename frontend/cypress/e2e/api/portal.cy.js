@@ -70,6 +70,7 @@ describe('API: time spent report', () => {
       expect(body.data).to.have.property('total_seconds')
       expect(body.data).to.have.property('billable_seconds')
       expect(body.data.agents).to.be.an('array')
+      expect(body.data.teams).to.be.an('array')
     })
   })
 })
