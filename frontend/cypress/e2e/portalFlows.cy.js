@@ -76,7 +76,7 @@ describe('Portal UI: conversations', () => {
     cy.intercept('GET', '/api/v1/portal/me', {
       statusCode: 200,
       body: { status: 'success', data: contact }
-    })
+    }).as('me')
     cy.intercept(
       { method: 'GET', pathname: '/api/v1/portal/conversations' },
       { statusCode: 200, body: { status: 'success', data: { results: [conversation], total: 1 } } }
@@ -197,6 +197,13 @@ describe('Portal UI: conversations', () => {
     cy.wait('@upload').then(({ request }) => {
       expect(request.headers['content-type']).to.contain('multipart/form-data')
     })
+  })
+
+  it('shows the contact profile', () => {
+    cy.visit('/portal/profile')
+    cy.wait('@me')
+    cy.get('[data-testid="portal-profile-email"]').should('contain', 'ivan@example.com')
+    cy.contains('Ivan Petrov').should('be.visible')
   })
 
   it('creates a new ticket', () => {

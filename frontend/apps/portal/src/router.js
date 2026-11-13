@@ -23,6 +23,12 @@ export const routes = [
     meta: { auth: true },
   },
   {
+    path: '/profile',
+    name: 'profile',
+    component: () => import('./views/ProfileView.vue'),
+    meta: { auth: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/',
   },

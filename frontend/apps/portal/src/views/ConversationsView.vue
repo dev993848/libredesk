@@ -110,6 +110,7 @@ onMounted(load)
         </div>
         <div class="flex flex-shrink-0 items-center gap-2">
           <Button size="sm" @click="router.push({ name: 'new-conversation' })">{{ t('portal.new') }}</Button>
+          <Button variant="ghost" size="sm" @click="router.push({ name: 'profile' })">{{ t('portal.profile') }}</Button>
           <Button variant="ghost" size="sm" @click="signOut">{{ t('portal.logout') }}</Button>
         </div>
       </div>

@@ -1695,6 +1695,8 @@
   "portal.new.title": "Новое обращение",
   "portal.noInbox": "Портал пока не настроен для приёма новых обращений.",
   "portal.noMessages": "Сообщений пока нет.",
+  "portal.profile": "Профиль",
+  "portal.profile.title": "Ваш профиль",
   "portal.reference": "№ {number}",
   "portal.reply.error": "Не удалось отправить ответ.",
   "portal.reply.placeholder": "Напишите ответ…",

@@ -1695,6 +1695,8 @@
   "portal.new.title": "New ticket",
   "portal.noInbox": "The portal is not configured to accept new tickets yet.",
   "portal.noMessages": "No messages yet.",
+  "portal.profile": "Profile",
+  "portal.profile.title": "Your profile",
   "portal.reference": "No. {number}",
   "portal.reply.error": "Could not send the reply.",
   "portal.reply.placeholder": "Write a reply…",
