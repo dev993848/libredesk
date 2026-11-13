@@ -126,6 +126,37 @@ describe('Portal UI: conversations', () => {
     cy.get('[data-testid="portal-conversation-time"]').should('contain', '1')
   })
 
+  it('loads more tickets', () => {
+    const all = Array.from({ length: 25 }, (_, index) => ({
+      ...conversation,
+      uuid: `c${index + 1}`,
+      reference_number: String(100 + index + 1),
+      subject: `Ticket ${index + 1}`
+    }))
+    cy.intercept(
+      { method: 'GET', pathname: '/api/v1/portal/conversations' },
+      (req) => {
+        const page = Number(req.query.page || 1)
+        req.reply({
+          statusCode: 200,
+          body: {
+            status: 'success',
+            data: { results: all.slice((page - 1) * 20, page * 20), total: all.length }
+          }
+        })
+      }
+    ).as('pages')
+
+    cy.visit('/portal/')
+    cy.wait('@pages')
+    cy.get('[data-testid="portal-conversation"]').should('have.length', 20)
+
+    cy.get('[data-testid="portal-load-more"]').click()
+    cy.wait('@pages')
+    cy.get('[data-testid="portal-conversation"]').should('have.length', 25)
+    cy.get('[data-testid="portal-load-more"]').should('not.exist')
+  })
+
   it('opens a ticket and shows its public messages', () => {
     cy.visit('/portal/')
     cy.get('[data-testid="portal-conversation"]').click()

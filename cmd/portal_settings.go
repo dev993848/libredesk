@@ -7,6 +7,7 @@ import (
 
 	"github.com/abhinavxd/libredesk/internal/envelope"
 	"github.com/abhinavxd/libredesk/internal/setting/models"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 	"github.com/zerodha/fastglue"
 )
 
@@ -18,7 +19,12 @@ func handleGetPortalSettings(r *fastglue.Request) error {
 	if err != nil {
 		return sendErrorEnvelope(r, err)
 	}
-	return r.SendEnvelope(all.Portal)
+	settings := all.Portal
+	// Never return the stored secret; the UI sends back the mask to keep it.
+	if settings.JWTSecret != "" {
+		settings.JWTSecret = strings.Repeat(stringutil.PasswordDummy, 10)
+	}
+	return r.SendEnvelope(settings)
 }
 
 // handleUpdatePortalSettings updates the portal settings and reloads the manager.
@@ -28,6 +34,15 @@ func handleUpdatePortalSettings(r *fastglue.Request) error {
 	var req models.Portal
 	if err := r.Decode(&req, "json"); err != nil {
 		return r.SendErrorEnvelope(400, app.i18n.T("errors.parsingRequest"), nil, envelope.InputError)
+	}
+	// The UI receives a masked secret and sends it back unchanged when the admin
+	// does not edit it; keep the stored value in that case.
+	if isMaskedSecret(req.JWTSecret) {
+		all, err := app.setting.GetAll()
+		if err != nil {
+			return sendErrorEnvelope(r, err)
+		}
+		req.JWTSecret = all.Portal.JWTSecret
 	}
 	if err := validatePortalSettings(app, &req); err != nil {
 		return sendErrorEnvelope(r, err)
@@ -81,4 +96,12 @@ func validatePortalSettings(app *App, req *models.Portal) error {
 		}
 	}
 	return nil
+}
+
+// isMaskedSecret reports whether a value is the placeholder shown instead of a stored secret.
+func isMaskedSecret(value string) bool {
+	if value == "" {
+		return false
+	}
+	return strings.Trim(value, stringutil.PasswordDummy) == ""
 }

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/abhinavxd/libredesk/internal/setting/models"
+	"github.com/abhinavxd/libredesk/internal/stringutil"
 )
 
 func TestValidatePortalSettings(t *testing.T) {
@@ -104,5 +106,18 @@ func TestValidatePortalSettings(t *testing.T) {
 				t.Fatalf("root url = %q, want %q", tc.req.RootURL, tc.wantRoot)
 			}
 		})
+	}
+}
+
+func TestIsMaskedSecret(t *testing.T) {
+	mask := strings.Repeat(stringutil.PasswordDummy, 10)
+	if !isMaskedSecret(mask) {
+		t.Fatal("expected the secret mask to be recognized")
+	}
+	if isMaskedSecret("") {
+		t.Fatal("empty value is not a mask")
+	}
+	if isMaskedSecret("real-secret-" + mask) {
+		t.Fatal("mixed value is not a mask")
 	}
 }

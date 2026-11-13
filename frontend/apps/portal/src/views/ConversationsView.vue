@@ -15,15 +15,19 @@ const router = useRouter()
 const items = ref([])
 const total = ref(0)
 const loading = ref(true)
+const loadingMore = ref(false)
 const error = ref('')
 const status = ref('')
 const query = ref('')
+const page = ref(1)
+const perPage = 20
 
 const filters = computed(() => [
   { value: '', label: t('portal.filters.all') },
   { value: 'open', label: t('portal.filters.open') },
   { value: 'waiting', label: t('portal.filters.waiting') },
   { value: 'resolved', label: t('portal.filters.resolved') },
+  { value: 'closed', label: t('portal.filters.closed') },
 ])
 
 function statusLabel(conversation) {
@@ -44,28 +48,45 @@ function badgeVariant(conversation) {
   }
 }
 
-async function load() {
-  loading.value = true
+async function load(append = false) {
+  if (append) {
+    loadingMore.value = true
+  } else {
+    loading.value = true
+  }
   error.value = ''
   try {
     const resp = await listConversations({
       status: status.value,
       q: query.value.trim(),
-      page: 1,
-      per_page: 50,
+      page: page.value,
+      per_page: perPage,
     })
-    items.value = resp.data.data.results || []
+    const results = resp.data.data.results || []
+    items.value = append ? [...items.value, ...results] : results
     total.value = resp.data.data.total || 0
   } catch (err) {
     error.value = err?.response?.data?.message || t('portal.error.load')
+    if (append) page.value -= 1
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
+}
+
+function reload() {
+  page.value = 1
+  load()
+}
+
+function loadMore() {
+  page.value += 1
+  load(true)
 }
 
 function setStatus(value) {
   status.value = value
-  load()
+  reload()
 }
 
 async function signOut() {
@@ -112,7 +133,7 @@ onMounted(load)
         type="search"
         :placeholder="t('portal.conversations.search')"
         class="mb-4"
-        @keyup.enter="load"
+        @keyup.enter="reload"
       />
 
       <div v-if="loading" class="py-12">
@@ -173,9 +194,12 @@ onMounted(load)
         </RouterLink>
       </div>
 
-      <p v-if="total > items.length" class="mt-3 text-center text-xs text-muted-foreground">
-        {{ items.length }} / {{ total }}
-      </p>
+      <div v-if="total > items.length" class="mt-4 text-center">
+        <Button variant="outline" size="sm" data-testid="portal-load-more" :disabled="loadingMore" @click="loadMore">
+          {{ loadingMore ? t('portal.loading') : t('portal.conversations.loadMore') }}
+        </Button>
+        <p class="mt-2 text-xs text-muted-foreground">{{ items.length }} / {{ total }}</p>
+      </div>
     </main>
   </div>
 </template>
