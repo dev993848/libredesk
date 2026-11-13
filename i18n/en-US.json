@@ -519,6 +519,7 @@
   "admin.role.tags.manage": "Manage tags",
   "admin.role.teams.manage": "Manage teams",
   "admin.role.templates.manage": "Manage templates",
+  "admin.role.timeTracking.manage": "Manage time tracking entries",
   "admin.role.users.manage": "Manage users",
   "admin.role.view.manage": "Create and manage conversation views",
   "admin.role.webhooks.manage": "Manage webhooks",

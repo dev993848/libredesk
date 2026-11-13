@@ -32,6 +32,7 @@ export const permissions = {
   REPORTS_MANAGE: 'reports:manage',
   BUSINESS_HOURS_MANAGE: 'business_hours:manage',
   SLA_MANAGE: 'sla:manage',
+  TIME_TRACKING_MANAGE: 'time_tracking:manage',
   AI_MANAGE: 'ai:manage',
   HELP_CENTER_MANAGE: 'help_center:manage',
   CUSTOM_ATTRIBUTES_MANAGE: 'custom_attributes:manage',

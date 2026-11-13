@@ -519,6 +519,7 @@
   "admin.role.tags.manage": "Управление тегами",
   "admin.role.teams.manage": "Управление командами",
   "admin.role.templates.manage": "Управление шаблонами",
+  "admin.role.timeTracking.manage": "Управление записями времени",
   "admin.role.users.manage": "Управление пользователями",
   "admin.role.view.manage": "Создание представлений обращений и управление ими",
   "admin.role.webhooks.manage": "Управление вебхуками",
